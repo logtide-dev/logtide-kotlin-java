@@ -337,8 +337,6 @@ fun Application.module() {
         serviceName = "ktor-app"
 
         // Optional configuration
-        logRequests = true
-        logResponses = true
         logErrors = true
         skipHealthCheck = true
         skipPaths = setOf("/metrics", "/internal")
@@ -348,6 +346,43 @@ fun Application.module() {
         flushInterval = kotlin.time.Duration.parse("5s")
         enableMetrics = true
         globalMetadata = mapOf("env" to "production")
+        
+        // Enable request/response logging
+        logRequests = true // Log incoming requests, e.g., method, path, headers
+        logResponses = true // Log outgoing responses stats, e.g., status code, duration
+        
+        // Customize metadata extraction from calls, e.g., add user ID, session info, etc.
+        extractMetadataFromIncomingCall = { call, traceId ->
+            mapOf(
+                "method" to call.request.httpMethod.value,
+                "path" to call.request.uri,
+                "remoteHost" to call.request.local.remoteHost,
+                "traceId" to traceId
+            )
+        }
+        
+        // Customize metadata extraction from responses, e.g., status code, time elapsed, etc.
+        extractMetadataFromOutgoingContent = { call, traceId, duration ->
+            val statusValue = call.response.status()?.value
+            val metadata = mutableMapOf(
+                "method" to call.request.httpMethod.value,
+                "path" to call.request.uri,
+                "status" to (statusValue ?: 0),
+                "duration" to (duration ?: 0L),
+                "traceId" to traceId
+            )
+            metadata
+        }
+        
+        // Extract trace ID from incoming requests (if any)
+        // useful for using in combination with the CallId plugin
+        extractTraceIdFromCall = { call ->
+            call.request.headers["X-Trace-ID"]
+        }
+        
+        // Whether to use the default interceptor to propagate trace IDs in call context
+        // if you plan to access the client manually in routes
+        useDefaultInterceptor = true
     }
 }
 ```

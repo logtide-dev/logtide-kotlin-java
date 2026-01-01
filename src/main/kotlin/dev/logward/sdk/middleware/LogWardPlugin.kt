@@ -56,12 +56,10 @@ class LogWardPluginConfig {
     var apiUrl: String = ""
     var apiKey: String = ""
     var serviceName: String = "ktor-app"
-    var logRequests: Boolean = true
-    var logResponses: Boolean = true
     var logErrors: Boolean = true
     var skipHealthCheck: Boolean = true
     var skipPaths: Set<String> = emptySet()
-    
+
     // Forward all LogWardClientOptions
     var batchSize: Int = 100
     var flushInterval: kotlin.time.Duration = kotlin.time.Duration.parse("5s")
@@ -69,6 +67,71 @@ class LogWardPluginConfig {
     var enableMetrics: Boolean = true
     var debug: Boolean = false
     var globalMetadata: Map<String, Any> = emptyMap()
+
+    /**
+     *   Whether to log incoming requests' metadata
+     */
+    var logRequests: Boolean = true
+
+    /**
+     *  Extract metadata from the outgoing response.
+     *  By default, includes: method, path, remoteHost, and traceId.
+     *
+     *  @param call The incoming application call
+     *  @param traceId The extracted or generated trace ID for the call
+     *
+     *  @return A map of metadata key-value pairs
+     */
+    var extractMetadataFromIncomingCall: (ApplicationCall, String) -> Map<String, Any> =
+        { call, traceId ->
+            mapOf(
+                "method" to call.request.httpMethod.value,
+                "path" to call.request.uri,
+                "remoteHost" to call.request.local.remoteHost,
+                "traceId" to traceId
+            )
+        }
+
+    /**
+     *  Whether to log outgoing responses' metadata
+     */
+    var logResponses: Boolean = true
+
+    /**
+     *  Extract metadata from the outgoing response.
+     *  By default, includes: method, path, status, duration (time elapsed), and traceId.
+     *
+     *  @param call The outgoing application call
+     *  @param traceId The extracted or generated trace ID for the call
+     *  @param duration The duration in milliseconds taken to process the call
+     *
+     *  @return A map of metadata key-value pairs
+     */
+    var extractMetadataFromOutgoingContent: (ApplicationCall, String, Long?) -> Map<String, Any> =
+        { call, traceId, duration ->
+            val statusValue = call.response.status()?.value
+            mapOf(
+                "method" to call.request.httpMethod.value,
+                "path" to call.request.uri,
+                "status" to (statusValue ?: 0),
+                "duration" to (duration ?: 0L),
+                "traceId" to traceId
+            )
+        }
+
+    /**
+     *  Extracts a trace ID from the incoming call.
+     *  By default, extracts the trace ID from the "X-Trace-ID" header if present.
+     *
+     *  @param call The incoming application call from which to extract the trace ID
+     *  @return The extracted trace ID, or null to generate a new trace ID
+     */
+    var extractTraceIdFromCall: (ApplicationCall) -> String? = { call ->
+        call.request.headers["X-Trace-ID"]
+    }
+
+    // Whether to use the default interceptor to propagate trace IDs in call context
+    var useDefaultInterceptor: Boolean = true
 
     internal fun toClientOptions() = LogWardClientOptions(
         apiUrl = apiUrl,
@@ -89,26 +152,24 @@ val LogWardPlugin = createApplicationPlugin(
     val config = pluginConfig
 
     // Log plugin installation
-    println("╭────────────────────────────────────────────╮")
-    println("│  LogWard Plugin Initialized                │")
-    println("╰────────────────────────────────────────────╯")
-    println("  Service Name: ${config.serviceName}")
-    println("  API URL: ${config.apiUrl}")
-    println("  Batch Size: ${config.batchSize}")
-    println("  Flush Interval: ${config.flushInterval}")
-    println("  Log Requests: ${config.logRequests}")
-    println("  Log Responses: ${config.logResponses}")
-    println("  Log Errors: ${config.logErrors}")
-    println("  Skip Health Check: ${config.skipHealthCheck}")
+    application.log.info("╭────────────────────────────────────────────╮")
+    application.log.info("│  LogWard Plugin Initialized                │")
+    application.log.info("╰────────────────────────────────────────────╯")
+    application.log.info("  Service Name: ${config.serviceName}")
+    application.log.info("  API URL: ${config.apiUrl}")
+    application.log.info("  Batch Size: ${config.batchSize}")
+    application.log.info("  Flush Interval: ${config.flushInterval}")
+    application.log.info("  Log Requests: ${config.logRequests}")
+    application.log.info("  Log Responses: ${config.logResponses}")
+    application.log.info("  Log Errors: ${config.logErrors}")
+    application.log.info("  Skip Health Check: ${config.skipHealthCheck}")
     if (config.skipPaths.isNotEmpty()) {
-        println("  Skip Paths: ${config.skipPaths.joinToString(", ")}")
+        application.log.info("  Skip Paths: ${config.skipPaths.joinToString(", ")}")
     }
-    println()
 
     val client = LogWardClient(config.toClientOptions())
-    println("✓ LogWard client created and ready")
-    println("✓ Access client manually via: call.application.attributes[LogWardClientKey]")
-    println()
+    application.log.info("✓ LogWard client created and ready")
+    application.log.info("✓ Access client manually via: call.application.attributes[LogWardClientKey]")
 
     // Store client in application attributes for manual access
     application.attributes.put(LogWardClientKey, client)
@@ -123,7 +184,7 @@ val LogWardPlugin = createApplicationPlugin(
         }
 
         // Extract or generate trace ID (always have one for coroutine propagation)
-        val traceId = call.request.headers["X-Trace-ID"]
+        val traceId = config.extractTraceIdFromCall(call)
             ?: UUID.randomUUID().toString()
 
         // Store trace ID for coroutine propagation
@@ -137,12 +198,7 @@ val LogWardPlugin = createApplicationPlugin(
             client.info(
                 config.serviceName,
                 "Request received",
-                mapOf(
-                    "method" to call.request.httpMethod.value,
-                    "path" to path,
-                    "remoteHost" to call.request.local.remoteHost,
-                    "traceId" to traceId
-                )
+                config.extractMetadataFromIncomingCall(call, traceId)
             )
         }
 
@@ -150,18 +206,20 @@ val LogWardPlugin = createApplicationPlugin(
         call.attributes.put(StartTimeKey, startTime)
     }
 
-    // Intercept the call pipeline to propagate trace ID in coroutine context
-    // This ensures all coroutines in the request handler have access to the trace ID
-    application.intercept(ApplicationCallPipeline.Call) {
-        val traceId = call.attributes.getOrNull(TraceIdAttributeKey)
-        if (traceId != null) {
-            // Wrap the entire call execution with TraceIdElement
-            // This propagates the trace ID to all child coroutines
-            withContext(TraceIdElement(traceId)) {
+    if (config.useDefaultInterceptor) {
+        // Intercept the call pipeline to propagate trace ID in coroutine context
+        // This ensures all coroutines in the request handler have access to the trace ID
+        application.intercept(ApplicationCallPipeline.Call) {
+            val traceId = call.attributes.getOrNull(TraceIdAttributeKey)
+            if (traceId != null) {
+                // Wrap the entire call execution with TraceIdElement
+                // This propagates the trace ID to all child coroutines
+                withContext(TraceIdElement(traceId)) {
+                    proceed()
+                }
+            } else {
                 proceed()
             }
-        } else {
-            proceed()
         }
     }
 
@@ -178,17 +236,17 @@ val LogWardPlugin = createApplicationPlugin(
 
         // Log response
         if (config.logResponses) {
-            val statusValue = call.response.status()?.value
-            val metadata = mutableMapOf<String, Any>(
-                "method" to call.request.httpMethod.value,
-                "path" to path,
-                "status" to (statusValue ?: 0),
-                "duration" to (duration ?: 0L)
-            )
-            if (traceId != null) {
-                metadata["traceId"] = traceId
+            val effectiveTraceId = traceId ?: run {
+                call.application.log.warn("Trace ID missing in response logging for path: $path, defaulting to 'unknown'. This may indicate a misconfiguration in the pipeline, such as disabling the default interceptor without supplying a new one in substitution.")
+                "unknown"
             }
-            client.info(config.serviceName, "Response sent", metadata)
+
+            val metadata = config.extractMetadataFromOutgoingContent(call, effectiveTraceId, duration)
+            client.info(
+                config.serviceName,
+                "Response sent",
+                metadata
+            )
         }
 
         // Clear trace ID (ThreadLocal cleanup)
