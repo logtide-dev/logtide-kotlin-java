@@ -11,16 +11,21 @@ import dev.logward.sdk.models.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import okhttp3.*
+import okhttp3.HttpUrl
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.*
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.pow
 
@@ -32,44 +37,48 @@ import kotlin.math.pow
  */
 class LogWardClient(private val options: LogWardClientOptions) {
     private val logger = LoggerFactory.getLogger(LogWardClient::class.java)
-    
+
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
-    
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
-    
+
     // Thread-safe buffer for batching
     private val buffer: MutableList<LogEntry> = Collections.synchronizedList(mutableListOf())
-    
+
     // Circuit breaker
     private val circuitBreaker = CircuitBreaker(
         threshold = options.circuitBreakerThreshold,
         resetMs = options.circuitBreakerReset.inWholeMilliseconds
     )
-    
+
     // Metrics tracking
     private val metricsLock = Any()
     private var metrics = ClientMetrics()
     private val latencyWindow = mutableListOf<Double>()
     private val maxLatencyWindow = 100
-    
+
     // Trace ID context (uses shared ThreadLocal from TraceIdContext for coroutine compatibility)
     internal val traceIdContext: ThreadLocal<String?> get() = threadLocalTraceId
-    
+
     // Periodic flush timer
     private val flushExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
         thread(start = false, name = "LogWard-Flush-Timer", isDaemon = true) { r.run() }
     }
-    
+
     // Coroutine scope for async operations
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    
+
+    private fun baseRequestBuilder(url: String) = Request.Builder()
+        .url(url)
+        .header("X-API-Key", options.apiKey)
+
     init {
         // Setup periodic flush
         flushExecutor.scheduleAtFixedRate(
@@ -78,21 +87,21 @@ class LogWardClient(private val options: LogWardClientOptions) {
             options.flushInterval.inWholeMilliseconds,
             TimeUnit.MILLISECONDS
         )
-        
+
         // Register shutdown hook for graceful cleanup
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
             runBlocking {
                 close()
             }
         })
-        
+
         if (options.debug) {
             logger.debug("Client initialized with apiUrl={}", options.apiUrl)
         }
     }
-    
+
     // ==================== Trace ID Context ====================
-    
+
     /**
      * Set trace ID for subsequent logs
      * Automatically validates and normalizes to UUID v4
@@ -100,12 +109,12 @@ class LogWardClient(private val options: LogWardClientOptions) {
     fun setTraceId(traceId: String?) {
         traceIdContext.set(normalizeTraceId(traceId))
     }
-    
+
     /**
      * Get current trace ID
      */
     fun getTraceId(): String? = traceIdContext.get()
-    
+
     /**
      * Execute function with a specific trace ID context
      */
@@ -118,7 +127,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
             traceIdContext.set(previousTraceId)
         }
     }
-    
+
     /**
      * Execute function with a new auto-generated trace ID
      */
@@ -174,19 +183,19 @@ class LogWardClient(private val options: LogWardClientOptions) {
     }
 
     // ==================== Logging Methods ====================
-    
+
     /**
      * Log a custom entry
      */
     fun log(entry: LogEntry) {
         var finalEntry = entry
-        
+
         // Apply global metadata
         if (options.globalMetadata.isNotEmpty()) {
             val mergedMetadata = (entry.metadata ?: emptyMap()) + options.globalMetadata
             finalEntry = entry.copy(metadata = mergedMetadata)
         }
-        
+
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()
@@ -196,7 +205,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
                 finalEntry = finalEntry.copy(traceId = UUID.randomUUID().toString())
             }
         }
-        
+
         // Add to buffer
         if (buffer.size >= options.maxBufferSize) {
             if (options.enableMetrics) {
@@ -209,36 +218,36 @@ class LogWardClient(private val options: LogWardClientOptions) {
             }
             throw BufferFullException()
         }
-        
+
         buffer.add(finalEntry)
-        
+
         // Auto-flush if batch size reached
         if (buffer.size >= options.batchSize) {
             scope.launch { flush() }
         }
     }
-    
+
     /**
      * Log debug message
      */
     fun debug(service: String, message: String, metadata: Map<String, Any>? = null) {
         log(LogEntry(service, LogLevel.DEBUG, message, metadata = metadata))
     }
-    
+
     /**
      * Log info message
      */
     fun info(service: String, message: String, metadata: Map<String, Any>? = null) {
         log(LogEntry(service, LogLevel.INFO, message, metadata = metadata))
     }
-    
+
     /**
      * Log warning message
      */
     fun warn(service: String, message: String, metadata: Map<String, Any>? = null) {
         log(LogEntry(service, LogLevel.WARN, message, metadata = metadata))
     }
-    
+
     /**
      * Log error message
      * Can accept either metadata map or Throwable
@@ -252,7 +261,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
         }
         log(LogEntry(service, LogLevel.ERROR, message, metadata = metadata))
     }
-    
+
     /**
      * Log critical message
      * Can accept either metadata map or Throwable
@@ -266,16 +275,16 @@ class LogWardClient(private val options: LogWardClientOptions) {
         }
         log(LogEntry(service, LogLevel.CRITICAL, message, metadata = metadata))
     }
-    
+
     // ==================== Flush & Send ====================
-    
+
     /**
      * Flush buffered logs to LogWard API
      * Implements retry logic with exponential backoff and circuit breaker pattern
      */
     suspend fun flush() {
         if (buffer.isEmpty()) return
-        
+
         // Copy and clear buffer atomically
         val logsToSend = synchronized(buffer) {
             if (buffer.isEmpty()) return
@@ -283,11 +292,11 @@ class LogWardClient(private val options: LogWardClientOptions) {
             buffer.clear()
             copy
         }
-        
+
         if (options.debug) {
             logger.debug("Flushing ${logsToSend.size} logs...")
         }
-        
+
         // Check circuit breaker
         if (!circuitBreaker.canAttempt()) {
             if (options.enableMetrics) {
@@ -300,23 +309,23 @@ class LogWardClient(private val options: LogWardClientOptions) {
             }
             throw CircuitBreakerOpenException()
         }
-        
+
         // Retry logic with exponential backoff
         var attempt = 0
         var lastError: Exception? = null
-        
+
         while (attempt <= options.maxRetries) {
             try {
                 val startTime = System.currentTimeMillis()
-                
+
                 // Send logs via HTTP
                 sendLogs(logsToSend)
-                
+
                 val latency = System.currentTimeMillis() - startTime
-                
+
                 // Success!
                 circuitBreaker.recordSuccess()
-                
+
                 if (options.enableMetrics) {
                     synchronized(metricsLock) {
                         metrics = metrics.copy(
@@ -326,23 +335,23 @@ class LogWardClient(private val options: LogWardClientOptions) {
                         updateLatency(latency.toDouble())
                     }
                 }
-                
+
                 if (options.debug) {
                     logger.debug("Successfully sent ${logsToSend.size} logs in ${latency}ms")
                 }
-                
+
                 return
-                
+
             } catch (e: Exception) {
                 lastError = e
                 circuitBreaker.recordFailure()
-                
+
                 if (options.enableMetrics) {
                     synchronized(metricsLock) {
                         metrics = metrics.copy(errors = metrics.errors + 1)
                     }
                 }
-                
+
                 if (attempt < options.maxRetries) {
                     val delayMs = options.retryDelay.inWholeMilliseconds * (2.0.pow(attempt.toDouble())).toLong()
                     if (options.debug) {
@@ -355,38 +364,36 @@ class LogWardClient(private val options: LogWardClientOptions) {
                 }
             }
         }
-        
+
         // All retries failed
         if (options.debug) {
             logger.error("All retry attempts failed: ${lastError?.message}")
         }
-        
+
         if (circuitBreaker.getState() == CircuitState.OPEN && options.enableMetrics) {
             synchronized(metricsLock) {
                 metrics = metrics.copy(circuitBreakerTrips = metrics.circuitBreakerTrips + 1)
             }
         }
     }
-    
+
     private suspend fun sendLogs(logs: List<LogEntry>) = withContext(Dispatchers.IO) {
         val payload = mapOf("logs" to logs)
         val jsonBody = json.encodeToString(payload)
-        
-        val request = Request.Builder()
-            .url("${options.apiUrl}/api/trpc/log.ingest")
+
+        val request = baseRequestBuilder(options.apiUrl)
             .post(jsonBody.toRequestBody("application/json".toMediaType()))
-            .header("Authorization", "Bearer ${options.apiKey}")
             .build()
-        
+
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 throw IOException("HTTP ${response.code}: ${response.message}")
             }
         }
     }
-    
+
     // ==================== Query API ====================
-    
+
     /**
      * Query logs with filters
      */
@@ -395,28 +402,26 @@ class LogWardClient(private val options: LogWardClientOptions) {
         val url = HttpUrl.Builder()
             .scheme(this@LogWardClient.options.apiUrl.substringBefore("://"))
             .host(this@LogWardClient.options.apiUrl.substringAfter("://").substringBefore("/"))
-            .addPathSegments("api/trpc/log.query")
+            .addPathSegments("api/v1/logs")
             .apply {
                 queryParams.forEach { (key, value) ->
                     addQueryParameter(key, value)
                 }
             }
             .build()
-        
-        val request = Request.Builder()
-            .url(url)
+
+        val request = baseRequestBuilder(url.toString())
             .get()
-            .header("Authorization", "Bearer ${this@LogWardClient.options.apiKey}")
             .build()
-        
+
         val response = httpClient.newCall(request).execute()
         if (!response.isSuccessful) {
             throw IOException("Query failed: HTTP ${response.code}")
         }
-        
+
         json.decodeFromString(response.body!!.string())
     }
-    
+
     /**
      * Get logs by trace ID
      */
@@ -424,39 +429,38 @@ class LogWardClient(private val options: LogWardClientOptions) {
         val response = query(QueryOptions(q = traceId))
         return response.logs.filter { it.traceId == traceId }
     }
-    
+
     /**
      * Get aggregated statistics
      */
-    suspend fun getAggregatedStats(options: AggregatedStatsOptions): AggregatedStatsResponse = withContext(Dispatchers.IO) {
-        val queryParams = buildStatsParams(options)
-        val url = HttpUrl.Builder()
-            .scheme(this@LogWardClient.options.apiUrl.substringBefore("://"))
-            .host(this@LogWardClient.options.apiUrl.substringAfter("://").substringBefore("/"))
-            .addPathSegments("api/trpc/log.getAggregatedStats")
-            .apply {
-                queryParams.forEach { (key, value) ->
-                    addQueryParameter(key, value)
+    suspend fun getAggregatedStats(options: AggregatedStatsOptions): AggregatedStatsResponse =
+        withContext(Dispatchers.IO) {
+            val queryParams = buildStatsParams(options)
+            val url = HttpUrl.Builder()
+                .scheme(this@LogWardClient.options.apiUrl.substringBefore("://"))
+                .host(this@LogWardClient.options.apiUrl.substringAfter("://").substringBefore("/"))
+                .addPathSegments("api/v1/logs/aggregated")
+                .apply {
+                    queryParams.forEach { (key, value) ->
+                        addQueryParameter(key, value)
+                    }
                 }
+                .build()
+
+            val request = baseRequestBuilder(url.toString())
+                .get()
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (!response.isSuccessful) {
+                throw IOException("Get stats failed: HTTP ${response.code}")
             }
-            .build()
-        
-        val request = Request.Builder()
-            .url(url)
-            .get()
-            .header("Authorization", "Bearer ${this@LogWardClient.options.apiKey}")
-            .build()
-        
-        val response = httpClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            throw IOException("Get stats failed: HTTP ${response.code}")
+
+            json.decodeFromString(response.body!!.string())
         }
-        
-        json.decodeFromString(response.body!!.string())
-    }
-    
+
     // ==================== Streaming ====================
-    
+
     /**
      * Stream logs in real-time via Server-Sent Events
      * Returns a cleanup function to stop streaming
@@ -469,20 +473,18 @@ class LogWardClient(private val options: LogWardClientOptions) {
         val url = HttpUrl.Builder()
             .scheme(options.apiUrl.substringBefore("://"))
             .host(options.apiUrl.substringAfter("://").substringBefore("/"))
-            .addPathSegments("api/trpc/log.stream")
+            .addPathSegments("api/v1/logs/stream")
             .apply {
                 filters.forEach { (key, value) ->
                     addQueryParameter(key, value)
                 }
             }
             .build()
-        
-        val request = Request.Builder()
-            .url(url)
+
+        val request = baseRequestBuilder(url.toString())
             .get()
-            .header("Authorization", "Bearer ${options.apiKey}")
             .build()
-        
+
         val eventSource = EventSources.createFactory(httpClient)
             .newEventSource(request, object : EventSourceListener() {
                 override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
@@ -493,22 +495,22 @@ class LogWardClient(private val options: LogWardClientOptions) {
                         onError?.invoke(e)
                     }
                 }
-                
+
                 override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                     onError?.invoke(t ?: IOException("Stream failed"))
                 }
             })
-        
+
         return { eventSource.cancel() }
     }
-    
+
     // ==================== Metrics ====================
-    
+
     /**
      * Get SDK metrics
      */
     fun getMetrics(): ClientMetrics = synchronized(metricsLock) { metrics }
-    
+
     /**
      * Reset SDK metrics
      */
@@ -518,14 +520,14 @@ class LogWardClient(private val options: LogWardClientOptions) {
             latencyWindow.clear()
         }
     }
-    
+
     /**
      * Get circuit breaker state
      */
     fun getCircuitBreakerState(): CircuitState = circuitBreaker.getState()
-    
+
     // ==================== Lifecycle ====================
-    
+
     /**
      * Close client and flush remaining logs
      */
@@ -533,7 +535,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
         if (options.debug) {
             logger.debug("Closing client...")
         }
-        
+
         flush()
         flushExecutor.shutdown()
         withContext(Dispatchers.IO) {
@@ -543,14 +545,15 @@ class LogWardClient(private val options: LogWardClientOptions) {
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
     }
-    
+
     // ==================== Helper Methods ====================
-    
+
     internal fun normalizeTraceId(traceId: String?): String? {
         if (traceId == null) return null
-        
-        val uuidRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".toRegex(RegexOption.IGNORE_CASE)
-        
+
+        val uuidRegex =
+            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".toRegex(RegexOption.IGNORE_CASE)
+
         return if (uuidRegex.matches(traceId)) {
             traceId
         } else {
@@ -560,7 +563,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
             UUID.randomUUID().toString()
         }
     }
-    
+
     private fun serializeError(error: Throwable): Map<String, Any?> {
         return mapOf(
             "name" to error::class.simpleName,
@@ -568,7 +571,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
             "stack" to error.stackTraceToString()
         )
     }
-    
+
     private fun updateLatency(latency: Double) {
         latencyWindow.add(latency)
         if (latencyWindow.size > maxLatencyWindow) {
@@ -576,7 +579,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
         }
         metrics = metrics.copy(avgLatencyMs = latencyWindow.average())
     }
-    
+
     private fun buildQueryParams(options: QueryOptions): Map<String, String> {
         val params = mutableMapOf<String, String>()
         options.service?.let { params["service"] = it }
@@ -588,7 +591,7 @@ class LogWardClient(private val options: LogWardClientOptions) {
         options.offset?.let { params["offset"] = it.toString() }
         return params
     }
-    
+
     private fun buildStatsParams(options: AggregatedStatsOptions): Map<String, String> {
         val params = mutableMapOf<String, String>()
         params["from"] = options.from.toString()
