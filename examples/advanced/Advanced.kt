@@ -1,8 +1,8 @@
-package dev.logward.sdk.examples
+package dev.logtide.sdk.examples
 
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.enums.LogLevel
-import dev.logward.sdk.models.*
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.enums.LogLevel
+import dev.logtide.sdk.models.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import java.time.Instant
@@ -10,13 +10,13 @@ import java.time.temporal.ChronoUnit
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Advanced usage example for LogWard Kotlin SDK
+ * Advanced usage example for LogTide Kotlin SDK
  * Demonstrates all features: query API, streaming, metrics, trace context, etc.
  */
 fun main() = runBlocking {
     // Initialize client with full configuration
-    val client = LogWardClient(
-        LogWardClientOptions(
+    val client = LogTideClient(
+        LogTideClientOptions(
             apiUrl = "http://localhost:8080",
             apiKey = "lp_your_api_key_here",
             batchSize = 50,
@@ -37,7 +37,7 @@ fun main() = runBlocking {
         )
     )
 
-    println("=== LogWard Advanced Features Demo ===\n")
+    println("=== LogTide Advanced Features Demo ===\n")
 
     // 1. Trace ID Context
     println("1. Trace ID Context")

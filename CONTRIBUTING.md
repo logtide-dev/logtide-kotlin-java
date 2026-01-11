@@ -1,4 +1,4 @@
-# Contributing to LogWard Kotlin SDK
+# Contributing to LogTide Kotlin SDK
 
 Thank you for your interest in contributing! 
 
@@ -6,8 +6,8 @@ Thank you for your interest in contributing!
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/logward-dev/logward-sdk-kotlin.git
-cd logward-sdk-kotlin
+git clone https://github.com/logtide-dev/logtide-sdk-kotlin.git
+cd logtide-sdk-kotlin
 ```
 
 2. Build the project:

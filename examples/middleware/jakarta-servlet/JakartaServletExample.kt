@@ -1,8 +1,8 @@
-package dev.logward.sdk.examples.middleware.servlet
+package dev.logtide.sdk.examples.middleware.servlet
 
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.middleware.LogWardFilter
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.middleware.LogTideFilter
+import dev.logtide.sdk.models.LogTideClientOptions
 import jakarta.servlet.annotation.WebServlet
 import jakarta.servlet.http.HttpServlet
 import jakarta.servlet.http.HttpServletRequest
@@ -14,15 +14,15 @@ import java.util.*
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Example of using LogWard with Jakarta Servlet (Jetty)
+ * Example of using LogTide with Jakarta Servlet (Jetty)
  *
- * This example demonstrates how to configure the LogWardFilter
+ * This example demonstrates how to configure the LogTideFilter
  * for automatic HTTP request/response logging in a Jakarta Servlet application.
  */
 fun main() {
-    // Create LogWard client
-    val logWardClient = LogWardClient(
-        LogWardClientOptions(
+    // Create LogTide client
+    val logTideClient = LogTideClient(
+        LogTideClientOptions(
             apiUrl = "http://localhost:8080",
             apiKey = "lp_your_api_key_here",
             batchSize = 100,
@@ -38,9 +38,9 @@ fun main() {
         )
     )
 
-    // Create LogWard filter
-    val logWardFilter = LogWardFilter(
-        client = logWardClient,
+    // Create LogTide filter
+    val logTideFilter = LogTideFilter(
+        client = logTideClient,
         serviceName = "servlet-app",
         logRequests = true,
         logResponses = true,
@@ -55,13 +55,13 @@ fun main() {
     context.contextPath = "/"
     server.handler = context
 
-    // Add LogWard filter
+    // Add LogTide filter
     val filterHolder = context.addFilter(
-        LogWardFilter::class.java,
+        LogTideFilter::class.java,
         "/*",
         EnumSet.of(jakarta.servlet.DispatcherType.REQUEST)
     )
-    filterHolder.filter = logWardFilter
+    filterHolder.filter = logTideFilter
 
     // Add example servlets
     context.addServlet(ServletHolder(HomeServlet()), "/")
@@ -80,7 +80,7 @@ fun main() {
 class HomeServlet : HttpServlet() {
     override fun doGet(req: HttpServletRequest, resp: HttpServletResponse) {
         resp.contentType = "text/plain"
-        resp.writer.write("Hello from Jakarta Servlet with LogWard!")
+        resp.writer.write("Hello from Jakarta Servlet with LogTide!")
     }
 }
 
@@ -105,7 +105,7 @@ class UsersServlet : HttpServlet() {
 @WebServlet(name = "ErrorServlet", urlPatterns = ["/api/error"])
 class ErrorServlet : HttpServlet() {
     override fun doGet(req: HttpServletRequest, resp: HttpServletResponse) {
-        // This will be logged as an error by LogWardFilter
+        // This will be logged as an error by LogTideFilter
         throw RuntimeException("Simulated error from Servlet")
     }
 }
@@ -113,7 +113,7 @@ class ErrorServlet : HttpServlet() {
 @WebServlet(name = "HealthServlet", urlPatterns = ["/health"])
 class HealthServlet : HttpServlet() {
     override fun doGet(req: HttpServletRequest, resp: HttpServletResponse) {
-        // This will be skipped by LogWard (skipHealthCheck = true)
+        // This will be skipped by LogTide (skipHealthCheck = true)
         resp.contentType = "application/json"
         resp.writer.write("""{"status": "healthy"}""")
     }

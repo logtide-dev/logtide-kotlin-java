@@ -1,17 +1,17 @@
-package dev.logward.sdk.examples
+package dev.logtide.sdk.examples
 
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.models.LogTideClientOptions
 import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Basic usage example for LogWard Kotlin SDK
+ * Basic usage example for LogTide Kotlin SDK
  */
 fun main() = runBlocking {
     // Initialize client
-    val client = LogWardClient(
-        LogWardClientOptions(
+    val client = LogTideClient(
+        LogTideClientOptions(
             apiUrl = "http://localhost:8080",
             apiKey = "lp_your_api_key_here"
         )
@@ -37,7 +37,7 @@ fun main() = runBlocking {
 
     // Manual flush and cleanup
     client.flush()
-    println("Logs sent! Check your LogWard dashboard.")
+    println("Logs sent! Check your LogTide dashboard.")
     
     // Close client (also called automatically on JVM shutdown)
     client.close()

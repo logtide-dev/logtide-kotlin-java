@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `currentTraceId()`: Top-level suspend function to get trace ID anywhere
 - **Automatic Ktor Coroutine Integration**: Trace ID is now automatically propagated in all Ktor route coroutines
   - Uses `ApplicationCallPipeline.Call` intercept to wrap requests with `TraceIdElement`
-  - No manual wrapping needed - just use the LogWard client in your routes
+  - No manual wrapping needed - just use the LogTide client in your routes
   - Trace ID from `X-Trace-ID` header or auto-generated UUID
 
 ### Changed
@@ -40,8 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ktor plugin example with automatic and manual logging (`examples/middleware/ktor/KtorExample.kt`)
   - Spring Boot interceptor example (`examples/middleware/spring-boot/SpringBootExample.kt`)
   - Jakarta Servlet filter example with Jetty (`examples/middleware/jakarta-servlet/JakartaServletExample.kt`)
-- **Manual Client Access**: `LogWardClientKey` for accessing LogWard client in Ktor routes
-  - Access client via `call.application.attributes[LogWardClientKey]`
+- **Manual Client Access**: `LogTideClientKey` for accessing LogTide client in Ktor routes
+  - Access client via `call.application.attributes[LogTideClientKey]`
   - Enables custom logging alongside automatic HTTP logging
 - **Initialization Logging**: Info logs when middleware is initialized
   - Ktor Plugin shows configuration summary on startup
@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of LogWard Kotlin SDK
+- Initial release of LogTide Kotlin SDK
 - Automatic batching with configurable size and interval
 - Retry logic with exponential backoff
 - Circuit breaker pattern for fault tolerance
@@ -78,6 +78,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kotlin coroutines support for async operations
 - Full Kotlin idioms: data classes, inline functions, DSL builder
 
-[0.3.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.3.0
-[0.2.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.2.0
-[0.1.0]: https://github.com/logward-dev/logward-sdk-kotlin/releases/tag/v0.1.0
+[0.3.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.3.0
+[0.2.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.2.0
+[0.1.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.1.0

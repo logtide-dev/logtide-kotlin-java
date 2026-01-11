@@ -12,4 +12,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = "logward-sdk-kotlin"
+rootProject.name = "logtide-sdk-kotlin"

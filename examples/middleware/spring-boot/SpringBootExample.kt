@@ -1,8 +1,8 @@
-package dev.logward.sdk.examples.middleware.springboot
+package dev.logtide.sdk.examples.middleware.springboot
 
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.middleware.LogWardInterceptor
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.middleware.LogTideInterceptor
+import dev.logtide.sdk.models.LogTideClientOptions
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -15,9 +15,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Example of using LogWard with Spring Boot
+ * Example of using LogTide with Spring Boot
  *
- * This example demonstrates how to configure the LogWardInterceptor
+ * This example demonstrates how to configure the LogTideInterceptor
  * for automatic HTTP request/response logging in a Spring Boot application.
  */
 @SpringBootApplication
@@ -28,12 +28,12 @@ fun main(args: Array<String>) {
 }
 
 @Configuration
-class LogWardConfig : WebMvcConfigurer {
+class LogTideConfig : WebMvcConfigurer {
 
     @Bean
-    fun logWardClient(): LogWardClient {
-        return LogWardClient(
-            LogWardClientOptions(
+    fun logTideClient(): LogTideClient {
+        return LogTideClient(
+            LogTideClientOptions(
                 apiUrl = "http://localhost:8080",
                 apiKey = "lp_your_api_key_here",
                 batchSize = 100,
@@ -51,8 +51,8 @@ class LogWardConfig : WebMvcConfigurer {
     }
 
     @Bean
-    fun logWardInterceptor(client: LogWardClient): LogWardInterceptor {
-        return LogWardInterceptor(
+    fun logTideInterceptor(client: LogTideClient): LogTideInterceptor {
+        return LogTideInterceptor(
             client = client,
             serviceName = "spring-boot-app",
             logRequests = true,
@@ -64,7 +64,7 @@ class LogWardConfig : WebMvcConfigurer {
     }
 
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(logWardInterceptor(logWardClient()))
+        registry.addInterceptor(logTideInterceptor(logTideClient()))
             .addPathPatterns("/**")
             .excludePathPatterns("/static/**", "/public/**")
     }
@@ -76,7 +76,7 @@ class ExampleController {
 
     @GetMapping("/")
     fun home(): Map<String, String> {
-        return mapOf("message" to "Hello from Spring Boot with LogWard!")
+        return mapOf("message" to "Hello from Spring Boot with LogTide!")
     }
 
     @GetMapping("/users")
@@ -93,7 +93,7 @@ class ExampleController {
 
     @GetMapping("/error")
     fun simulateError(): Nothing {
-        // This will be logged as an error by LogWardInterceptor
+        // This will be logged as an error by LogTideInterceptor
         throw RuntimeException("Simulated error from Spring Boot")
     }
 }
@@ -103,13 +103,13 @@ class HealthController {
 
     @GetMapping("/health")
     fun health(): Map<String, String> {
-        // This will be skipped by LogWard (skipHealthCheck = true)
+        // This will be skipped by LogTide (skipHealthCheck = true)
         return mapOf("status" to "healthy")
     }
 
     @GetMapping("/actuator/health")
     fun actuatorHealth(): Map<String, String> {
-        // This will also be skipped by LogWard
+        // This will also be skipped by LogTide
         return mapOf("status" to "UP")
     }
 }

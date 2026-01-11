@@ -7,7 +7,7 @@ plugins {
     id("com.vanniktech.maven.publish") version "0.29.0"
 }
 
-group = "io.github.logward-dev"
+group = "io.github.logtide-dev"
 version = "0.4.0"
 
 repositories {
@@ -76,12 +76,12 @@ mavenPublishing {
     publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
     signAllPublications()
 
-    coordinates("io.github.logward-dev", "logward-sdk-kotlin", version.toString())
+    coordinates("io.github.logtide-dev", "logtide-sdk-kotlin", version.toString())
 
     pom {
-        name.set("LogWard Kotlin SDK")
-        description.set("Official Kotlin SDK for LogWard - Self-hosted log management with batching, retry logic, circuit breaker, and query API")
-        url.set("https://github.com/logward-dev/logward-sdk-kotlin")
+        name.set("LogTide Kotlin SDK")
+        description.set("Official Kotlin SDK for LogTide - Self-hosted log management with batching, retry logic, circuit breaker, and query API")
+        url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
 
         licenses {
             license {
@@ -99,9 +99,9 @@ mavenPublishing {
         }
 
         scm {
-            connection.set("scm:git:git://github.com/logward-dev/logward-sdk-kotlin.git")
-            developerConnection.set("scm:git:ssh://github.com/logward-dev/logward-sdk-kotlin.git")
-            url.set("https://github.com/logward-dev/logward-sdk-kotlin")
+            connection.set("scm:git:git://github.com/logtide-dev/logtide-sdk-kotlin.git")
+            developerConnection.set("scm:git:ssh://github.com/logtide-dev/logtide-sdk-kotlin.git")
+            url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
         }
     }
 }

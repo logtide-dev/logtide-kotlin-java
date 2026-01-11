@@ -1,7 +1,7 @@
-package dev.logward.sdk.examples.middleware.ktor
+package dev.logtide.sdk.examples.middleware.ktor
 
-import dev.logward.sdk.middleware.LogWardPlugin
-import dev.logward.sdk.middleware.LogWardClientKey
+import dev.logtide.sdk.middleware.LogTidePlugin
+import dev.logtide.sdk.middleware.LogTideClientKey
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
@@ -10,16 +10,16 @@ import io.ktor.server.routing.*
 import io.ktor.http.*
 
 /**
- * Example of using LogWard with Ktor
+ * Example of using LogTide with Ktor
  *
  * This example demonstrates:
- * 1. How to install and configure the LogWardPlugin for automatic HTTP logging
- * 2. How to access the LogWard client manually in your routes for custom logging
+ * 1. How to install and configure the LogTidePlugin for automatic HTTP logging
+ * 2. How to access the LogTide client manually in your routes for custom logging
  */
 fun main() {
     embeddedServer(Netty, port = 8080) {
-        // Install LogWard plugin
-        install(LogWardPlugin) {
+        // Install LogTide plugin
+        install(LogTidePlugin) {
             apiUrl = "http://localhost:8080"
             apiKey = "lp_your_api_key_here"
             serviceName = "ktor-app"
@@ -31,7 +31,7 @@ fun main() {
             skipHealthCheck = true
             skipPaths = setOf("/metrics", "/internal")
 
-            // LogWard client options
+            // LogTide client options
             batchSize = 100
             flushInterval = kotlin.time.Duration.parse("5s")
             maxBufferSize = 10000
@@ -45,7 +45,7 @@ fun main() {
 
         routing {
             get("/") {
-                call.respondText("Hello from Ktor with LogWard!", ContentType.Text.Plain)
+                call.respondText("Hello from Ktor with LogTide!", ContentType.Text.Plain)
             }
 
             get("/api/users") {
@@ -65,13 +65,13 @@ fun main() {
             }
 
             get("/health") {
-                // This will be skipped by LogWard (skipHealthCheck = true)
+                // This will be skipped by LogTide (skipHealthCheck = true)
                 call.respond(HttpStatusCode.OK, mapOf("status" to "healthy"))
             }
 
             get("/api/custom-log") {
-                // Access the LogWard client manually for custom logging
-                val client = call.application.attributes[LogWardClientKey]
+                // Access the LogTide client manually for custom logging
+                val client = call.application.attributes[LogTideClientKey]
 
                 // Log custom messages with your own metadata
                 client.info(
@@ -101,7 +101,7 @@ fun main() {
 
             get("/api/manual-trace") {
                 // Use the client with trace ID for distributed tracing
-                val client = call.application.attributes[LogWardClientKey]
+                val client = call.application.attributes[LogTideClientKey]
 
                 client.withTraceId("trace-${System.currentTimeMillis()}") {
                     client.info("trace-service", "Starting traced operation")

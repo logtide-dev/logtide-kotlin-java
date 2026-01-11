@@ -26,7 +26,7 @@ Project maintainers have the right to remove, edit, or reject comments, commits,
 
 ## Reporting
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at **conduct@logward.dev**.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at **support@logtide.dev**.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

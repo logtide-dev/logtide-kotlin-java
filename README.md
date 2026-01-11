@@ -1,6 +1,6 @@
-# LogWard Kotlin SDK
+# LogTide Kotlin SDK
 
-Official Kotlin SDK for LogWard with advanced features: automatic batching, retry logic, circuit breaker, query API, live streaming, and middleware support.
+Official Kotlin SDK for LogTide with advanced features: automatic batching, retry logic, circuit breaker, query API, live streaming, and middleware support.
 
 ## Features
 
@@ -29,7 +29,7 @@ Official Kotlin SDK for LogWard with advanced features: automatic batching, retr
 
 ```kotlin
 dependencies {
-    implementation("io.github.logward-dev:logward-sdk-kotlin:0.2.0")
+    implementation("io.github.logtide-dev:logtide-sdk-kotlin:0.2.0")
 }
 ```
 
@@ -37,7 +37,7 @@ dependencies {
 
 ```groovy
 dependencies {
-    implementation 'io.github.logward-dev:logward-sdk-kotlin:0.2.0'
+    implementation 'io.github.logtide-dev:logtide-sdk-kotlin:0.2.0'
 }
 ```
 
@@ -45,8 +45,8 @@ dependencies {
 
 ```xml
 <dependency>
-    <groupId>io.github.logward-dev</groupId>
-    <artifactId>logward-sdk-kotlin</artifactId>
+    <groupId>io.github.logtide-dev</groupId>
+    <artifactId>logtide-sdk-kotlin</artifactId>
     <version>0.2.0</version>
 </dependency>
 ```
@@ -54,11 +54,11 @@ dependencies {
 ## Quick Start
 
 ```kotlin
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.models.LogTideClientOptions
 
-val client = LogWardClient(
-    LogWardClientOptions(
+val client = LogTideClient(
+    LogTideClientOptions(
         apiUrl = "http://localhost:8080",
         apiKey = "lp_your_api_key_here"
     )
@@ -82,7 +82,7 @@ runBlocking {
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `apiUrl` | `String` | **required** | Base URL of your LogWard instance |
+| `apiUrl` | `String` | **required** | Base URL of your LogTide instance |
 | `apiKey` | `String` | **required** | Project API key (starts with `lp_`) |
 | `batchSize` | `Int` | `100` | Number of logs to batch before sending |
 | `flushInterval` | `Duration` | `5.seconds` | Interval to auto-flush logs |
@@ -107,8 +107,8 @@ runBlocking {
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Duration.Companion.milliseconds
 
-val client = LogWardClient(
-    LogWardClientOptions(
+val client = LogTideClient(
+    LogTideClientOptions(
         apiUrl = "http://localhost:8080",
         apiKey = "lp_your_api_key_here",
         
@@ -228,8 +228,8 @@ Search and retrieve logs programmatically.
 ### Basic Query
 
 ```kotlin
-import dev.logward.sdk.models.QueryOptions
-import dev.logward.sdk.enums.LogLevel
+import dev.logtide.sdk.models.QueryOptions
+import dev.logtide.sdk.enums.LogLevel
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -320,18 +320,18 @@ client.resetMetrics()
 
 ## Middleware Integration
 
-LogWard provides ready-to-use middleware for popular frameworks.
+LogTide provides ready-to-use middleware for popular frameworks.
 
 ### Ktor Plugin
 
 Automatically log HTTP requests and responses in Ktor applications.
 
 ```kotlin
-import dev.logward.sdk.middleware.LogWardPlugin
+import dev.logtide.sdk.middleware.LogTidePlugin
 import io.ktor.server.application.*
 
 fun Application.module() {
-    install(LogWardPlugin) {
+    install(LogTidePlugin) {
         apiUrl = "http://localhost:8080"
         apiKey = "lp_your_api_key_here"
         serviceName = "ktor-app"
@@ -391,15 +391,15 @@ fun Application.module() {
 
 #### Accessing the Client Manually in Ktor
 
-You can access the LogWard client directly in your routes for custom logging:
+You can access the LogTide client directly in your routes for custom logging:
 
 ```kotlin
-import dev.logward.sdk.middleware.LogWardClientKey
+import dev.logtide.sdk.middleware.LogTideClientKey
 
 routing {
     get("/api/custom") {
         // Get the client from application attributes
-        val client = call.application.attributes[LogWardClientKey]
+        val client = call.application.attributes[LogTideClientKey]
 
         // Log custom messages
         client.info(
@@ -418,27 +418,27 @@ routing {
 Automatically log HTTP requests and responses in Spring Boot applications.
 
 ```kotlin
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.middleware.LogWardInterceptor
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.middleware.LogTideInterceptor
+import dev.logtide.sdk.models.LogTideClientOptions
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 
 @Configuration
-class LogWardConfig : WebMvcConfigurer {
+class LogTideConfig : WebMvcConfigurer {
 
     @Bean
-    fun logWardClient() = LogWardClient(
-        LogWardClientOptions(
+    fun logTideClient() = LogTideClient(
+        LogTideClientOptions(
             apiUrl = "http://localhost:8080",
             apiKey = "lp_your_api_key_here"
         )
     )
 
     @Bean
-    fun logWardInterceptor(client: LogWardClient) = LogWardInterceptor(
+    fun logTideInterceptor(client: LogTideClient) = LogTideInterceptor(
         client = client,
         serviceName = "spring-boot-app",
         logRequests = true,
@@ -447,7 +447,7 @@ class LogWardConfig : WebMvcConfigurer {
     )
 
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(logWardInterceptor(logWardClient()))
+        registry.addInterceptor(logTideInterceptor(logTideClient()))
     }
 }
 ```
@@ -459,20 +459,20 @@ class LogWardConfig : WebMvcConfigurer {
 Automatically log HTTP requests and responses in Jakarta Servlet applications (Tomcat, Jetty, etc.).
 
 ```kotlin
-import dev.logward.sdk.LogWardClient
-import dev.logward.sdk.middleware.LogWardFilter
-import dev.logward.sdk.models.LogWardClientOptions
+import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.middleware.LogTideFilter
+import dev.logtide.sdk.models.LogTideClientOptions
 
 // Create client
-val client = LogWardClient(
-    LogWardClientOptions(
+val client = LogTideClient(
+    LogTideClientOptions(
         apiUrl = "http://localhost:8080",
         apiKey = "lp_your_api_key_here"
     )
 )
 
 // Create filter
-val filter = LogWardFilter(
+val filter = LogTideFilter(
     client = client,
     serviceName = "servlet-app",
     logRequests = true,
@@ -481,17 +481,17 @@ val filter = LogWardFilter(
 )
 
 // Add to servlet context
-servletContext.addFilter("logWard", filter)
+servletContext.addFilter("logTide", filter)
 ```
 
 **Or via web.xml:**
 ```xml
 <filter>
-    <filter-name>LogWardFilter</filter-name>
-    <filter-class>dev.logward.sdk.middleware.LogWardFilter</filter-class>
+    <filter-name>LogTideFilter</filter-name>
+    <filter-class>dev.logtide.sdk.middleware.LogTideFilter</filter-class>
 </filter>
 <filter-mapping>
-    <filter-name>LogWardFilter</filter-name>
+    <filter-name>LogTideFilter</filter-name>
     <url-pattern>/*</url-pattern>
 </filter-mapping>
 ```
@@ -508,11 +508,11 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or PR on [GitHub](https://github.com/logward-dev/logward-sdk-kotlin).
+Contributions are welcome! Please open an issue or PR on [GitHub](https://github.com/logtide-dev/logtide-sdk-kotlin).
 
 ---
 
 ## Support
 
-- **Documentation**: [https://logward.dev/docs](https://logward.dev/docs)
-- **Issues**: [GitHub Issues](https://github.com/logward-dev/logward-sdk-kotlin/issues)
+- **Documentation**: [https://logtide.dev/docs](https://logtide.dev/docs)
+- **Issues**: [GitHub Issues](https://github.com/logtide-dev/logtide-sdk-kotlin/issues)

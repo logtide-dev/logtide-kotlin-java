@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in LogWard Kotlin SDK, please report it by emailing **support@logward.dev** (or your preferred contact).
+If you discover a security vulnerability in LogTide Kotlin SDK, please report it by emailing **support@logtide.dev** (or your preferred contact).
 
 Please do **NOT** file a public issue.
 
@@ -23,4 +23,4 @@ When using the SDK:
 3. **Limit Buffer Size**: Configure appropriate `maxBufferSize` to prevent memory exhaustion
 4. **Update Regularly**: Keep the SDK updated to the latest version
 
-Thank you for helping keep LogWard and its users safe!
+Thank you for helping keep LogTide and its users safe!
