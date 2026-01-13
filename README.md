@@ -1,6 +1,21 @@
-# LogTide Kotlin SDK
+<p align="center">
+  <img src="https://raw.githubusercontent.com/logtide-dev/logtide/main/docs/images/logo.png" alt="LogTide Logo" width="400">
+</p>
 
-Official Kotlin SDK for LogTide with advanced features: automatic batching, retry logic, circuit breaker, query API, live streaming, and middleware support.
+<h1 align="center">LogTide Kotlin SDK</h1>
+
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/io.github.logtide-dev/logtide-sdk-kotlin"><img src="https://img.shields.io/maven-central/v/io.github.logtide-dev/logtide-sdk-kotlin?color=blue" alt="Maven Central"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://kotlinlang.org"><img src="https://img.shields.io/badge/Kotlin-1.9+-purple.svg" alt="Kotlin"></a>
+  <a href="https://github.com/logtide-dev/logtide-sdk-kotlin/releases"><img src="https://img.shields.io/github/v/release/logtide-dev/logtide-sdk-kotlin" alt="Release"></a>
+</p>
+
+<p align="center">
+  Official Kotlin SDK for <a href="https://logtide.dev">LogTide</a> with automatic batching, retry logic, circuit breaker, query API, live streaming, and middleware support.
+</p>
+
+---
 
 ## Features
 
@@ -500,19 +515,22 @@ servletContext.addFilter("logTide", filter)
 
 ---
 
-## License
-
-MIT
-
----
-
 ## Contributing
 
-Contributions are welcome! Please open an issue or PR on [GitHub](https://github.com/logtide-dev/logtide-sdk-kotlin).
+Contributions are welcome! Please:
 
----
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run `./gradlew check` to ensure tests pass
+5. Submit a pull request
 
-## Support
+## License
 
-- **Documentation**: [https://logtide.dev/docs](https://logtide.dev/docs)
-- **Issues**: [GitHub Issues](https://github.com/logtide-dev/logtide-sdk-kotlin/issues)
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Links
+
+- [LogTide Website](https://logtide.dev)
+- [Documentation](https://logtide.dev/docs/sdks/kotlin/)
+- [GitHub Issues](https://github.com/logtide-dev/logtide-sdk-kotlin/issues)

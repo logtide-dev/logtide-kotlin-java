@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://logtide.dev/docs/sdks/kotlin/
+    about: Check the documentation before opening an issue
+  - name: Discussions
+    url: https://github.com/logtide-dev/logtide-sdk-kotlin/discussions
+    about: Ask questions and discuss ideas
