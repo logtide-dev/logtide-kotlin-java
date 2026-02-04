@@ -1,4 +1,7 @@
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 plugins {
     kotlin("jvm") version "1.9.21"
@@ -73,8 +76,8 @@ java {
 }
 
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
-    signAllPublications()
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+    signIfKeyPresent(project)
 
     coordinates("io.github.logtide-dev", "logtide-sdk-kotlin", version.toString())
 
@@ -108,5 +111,26 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/logtide-dev/logtide-sdk-kotlin.git")
             url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
         }
+    }
+}
+
+@OptIn(ExperimentalEncodingApi::class)
+fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
+    val keyId = System.getenv("KEY_ID")
+    val keyBytes = Base64.decode(System.getenv("SECRING").toByteArray()).decodeToString()
+    val keyPassword = System.getenv("PASSWORD")
+
+    if (keyPassword != null) {
+        project.extensions.configure<SigningExtension>("signing") {
+            // For binary .gpg keys
+            if (keyId == null) {
+                useInMemoryPgpKeys(keyBytes, keyPassword)
+            } else {
+                useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
+            }
+            signAllPublications()
+        }
+    } else {
+        println("Signing skipped: PASSWORD environment variable not set.")
     }
 }
