@@ -128,6 +128,12 @@ gradle.taskGraph.whenReady {
     }
 }
 
+tasks.register("printVersion") {
+    doLast {
+        println(project.version.toString())
+    }
+}
+
 @OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyId = System.getenv("KEY_ID")
