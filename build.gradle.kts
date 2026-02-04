@@ -114,6 +114,20 @@ mavenPublishing {
     }
 }
 
+gradle.taskGraph.whenReady {
+    val tag = System.getenv("GITHUB_REF_NAME")
+        ?.removePrefix("v")
+        ?: return@whenReady
+
+    val versionString = project.version.toString()
+
+    if (versionString != tag) {
+        throw GradleException(
+            "Version mismatch: project.version=$versionString, tag=$tag"
+        )
+    }
+}
+
 @OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyId = System.getenv("KEY_ID")
