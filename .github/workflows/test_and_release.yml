@@ -54,7 +54,7 @@ jobs:
           distribution: corretto
           java-version: 17
       - name: Set up Gradle
-        uses: gradle/gradle-build-action@v3
+        uses: gradle/actions/setup-gradle@v5
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
       - name: Run JUnit tests
