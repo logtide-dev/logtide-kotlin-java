@@ -137,7 +137,7 @@ tasks.register("printVersion") {
 @OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyId = System.getenv("KEY_ID")
-    val keyBytes = Base64.decode(System.getenv("SECRING").toByteArray()).decodeToString()
+    val keyBytes = System.getenv("SECRING")?.let { Base64.decode(it.toByteArray()).decodeToString() } ?: null
     val keyPassword = System.getenv("PASSWORD")
 
     if (keyPassword != null) {
