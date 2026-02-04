@@ -1,7 +1,4 @@
-import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 
 plugins {
     kotlin("jvm") version "1.9.21"
@@ -76,8 +73,8 @@ java {
 }
 
 mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-    signIfKeyPresent(project)
+    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    signAllPublications()
 
     coordinates("io.github.logtide-dev", "logtide-sdk-kotlin", version.toString())
 
@@ -99,11 +96,6 @@ mavenPublishing {
                 name.set("Polliog")
                 email.set("giuseppe@solture.it")
             }
-            developer {
-                id.set("emanueleiannuzzi")
-                name.set("Emanuele Iannuzzi")
-                email.set("hello@emanueleiannuzzi.me")
-            }
         }
 
         scm {
@@ -111,55 +103,5 @@ mavenPublishing {
             developerConnection.set("scm:git:ssh://github.com/logtide-dev/logtide-sdk-kotlin.git")
             url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
         }
-    }
-}
-
-tasks.register("printVersion") {
-    doLast {
-        println(project.version.toString())
-    }
-}
-
-tasks.register("checkVersionTag") {
-    doLast {
-        val tag = System.getenv("GITHUB_REF_NAME")
-            ?.removePrefix("v")
-            ?: return@doLast
-
-        val versionString = project.version.toString()
-
-        if (versionString != tag) {
-            throw GradleException(
-                "Version mismatch: project.version=$versionString, tag=$tag"
-            )
-        }
-    }
-}
-
-tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
-
-@OptIn(ExperimentalEncodingApi::class)
-fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
-    val keyId = System.getenv("KEY_ID").also {
-        if (it == null) {
-            println("KEY_ID environment variable not set, assuming binary .gpg key.")
-        }
-    }
-    val keyBytes = System.getenv("SECRING")?.let { Base64.decode(it.toByteArray()).decodeToString() }
-    val keyPassword = System.getenv("PASSWORD")
-
-    if (keyBytes == null || keyPassword == null) {
-        println("Signing environment variables not set, skipping signing.")
-        return
-    }
-
-    project.extensions.configure<SigningExtension>("signing") {
-        // For binary .gpg keys
-        if (keyId == null) {
-            useInMemoryPgpKeys(keyBytes, keyPassword)
-        } else {
-            useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
-        }
-        signAllPublications()
     }
 }
