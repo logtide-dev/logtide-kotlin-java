@@ -5,23 +5,7 @@ on:
     types: [ published ]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Set up Java 17
-        uses: actions/setup-java@v3
-        with:
-          distribution: corretto
-          java-version: 17
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v5
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
-
   test:
-    needs: setup
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,15 +17,13 @@ jobs:
           java-version: 17
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
-      - name: Make Gradle wrapper executable
-        run: chmod +x gradlew
       - name: Run JUnit tests
-        run: ./gradlew test
+        run: |
+          chmod +x ./gradlew
+          bash ./gradlew test
 
   release:
-    needs:
-      - setup
-      - test
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,7 +55,7 @@ jobs:
       - name: Build JAR
         run: |
           chmod +x ./gradlew
-          ./gradlew clean build -x test
+          bash ./gradlew clean build -x test
 
       - name: Publish to Sonatype OSSRH and Maven Central
         env:
@@ -84,7 +66,7 @@ jobs:
           OSSRH_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
+          bash ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
 
       - name: Upload JAR to GitHub release
         uses: actions/upload-release-asset@v1
