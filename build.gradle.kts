@@ -1,121 +1,66 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SonatypeHost
+import helpers.configureMavenCentralMetadata
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
+val kotlinJvmTarget: String by project
+
 plugins {
-    kotlin("jvm") version "1.9.21"
-    kotlin("plugin.serialization") version "1.9.21"
-    id("org.jetbrains.dokka") version "1.9.10"
-    id("com.vanniktech.maven.publish") version "0.29.0"
+    alias(libs.plugins.kotlin.jvm) apply true
+    alias(libs.plugins.maven.publish)
 }
 
-group = "io.github.logtide-dev"
-version = "0.4.0"
+allprojects {
+    if (this == rootProject) return@allprojects
+    pluginManager.withPlugin("maven-publish") {
+        pluginManager.withPlugin("signing") {
+            mavenPublishing {
+                publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+                signIfKeyPresent(this@allprojects)
 
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    // Kotlin
-    implementation(kotlin("stdlib"))
-
-    // HTTP Client
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
-
-    // JSON Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
-
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-
-    // Logging
-    compileOnly("org.slf4j:slf4j-api:2.0.9")
-
-    // Framework integrations
-    compileOnly("org.springframework.boot:spring-boot-starter-web:3.2.0")
-    compileOnly("io.ktor:ktor-server-core:2.3.7")
-    compileOnly("jakarta.servlet:jakarta.servlet-api:6.0.0")
-
-    // Testing
-    testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    testImplementation("io.mockk:mockk:1.13.8")
-
-    // Logging for tests (required since slf4j-api is compileOnly)
-    testImplementation("org.slf4j:slf4j-api:2.0.9")
-    testImplementation("org.slf4j:slf4j-simple:2.0.9")
-
-    // Framework testing dependencies
-    testImplementation("io.ktor:ktor-server-test-host:2.3.7")
-    testImplementation("io.ktor:ktor-server-content-negotiation:2.3.7")
-    testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
-    testImplementation("org.springframework:spring-test:6.1.1")
-    testImplementation("org.springframework:spring-webmvc:6.1.1")
-    testImplementation("org.springframework.boot:spring-boot-test:3.2.0")
-    testImplementation("jakarta.servlet:jakarta.servlet-api:6.0.0")
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        freeCompilerArgs = listOf("-Xjsr305=strict")
-        jvmTarget = "17"
+                pom {
+                    configureMavenCentralMetadata(this@allprojects)
+                }
+            }
+        }
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-    signIfKeyPresent(project)
-
-    coordinates("io.github.logtide-dev", "logtide-sdk-kotlin", version.toString())
-
-    pom {
-        name.set("LogTide Kotlin SDK")
-        description.set("Official Kotlin SDK for LogTide - Self-hosted log management with batching, retry logic, circuit breaker, and query API")
-        url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
-
-        licenses {
-            license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
+subprojects {
+    plugins.withType<JavaPlugin>().configureEach {
+        extensions.configure<JavaPluginExtension> {
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(kotlinJvmTarget))
+                vendor.set(JvmVendorSpec.AMAZON)
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
         }
+    }
 
-        developers {
-            developer {
-                id.set("polliog")
-                name.set("Polliog")
-                email.set("giuseppe@solture.it")
-            }
-            developer {
-                id.set("emanueleiannuzzi")
-                name.set("Emanuele Iannuzzi")
-                email.set("hello@emanueleiannuzzi.me")
-            }
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        extensions.configure<KotlinJvmProjectExtension> {
+            jvmToolchain(kotlinJvmTarget.toInt())
         }
+    }
 
-        scm {
-            connection.set("scm:git:git://github.com/logtide-dev/logtide-sdk-kotlin.git")
-            developerConnection.set("scm:git:ssh://github.com/logtide-dev/logtide-sdk-kotlin.git")
-            url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
+    tasks.withType<KotlinCompile> {
+        kotlinOptions {
+            freeCompilerArgs = listOf("-Xjsr305=strict")
+            jvmTarget = kotlinJvmTarget
         }
+    }
+
+    tasks.withType<Test> {
+        useJUnitPlatform()
     }
 }
 
 @OptIn(ExperimentalEncodingApi::class)
-fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
+private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyId = System.getenv("KEY_ID")
     val keyBytes = runCatching {
         Base64.decode(System.getenv("SECRING").toByteArray()).decodeToString()

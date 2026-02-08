@@ -1,0 +1,11 @@
+[versions]
+spring-boot = "3.2.0"
+ktor = "2.3.7"
+jakarta = "6.0.0"
+
+[plugins]
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta" }
