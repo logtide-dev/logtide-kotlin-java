@@ -4,7 +4,7 @@ import libsVersionCatalog
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
-class LogtideConvetionPlugin : Plugin<Project> {
+class LogtideConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             val libs = libsVersionCatalog

@@ -4,5 +4,5 @@ plugins {
 
 dependencies {
     implementation(project(":logtide-core"))
-    compileOnly(frameworks.ktor.server.core)
+    compileOnly(frameworks.jakarta.servlet.api)
 }

@@ -3,9 +3,6 @@ rootProject.name = "logtide-kotlin-java"
 @Suppress("UnstableApiUsage")
 dependencyResolutionManagement {
     versionCatalogs {
-        create("libs") {
-            from(files("gradle/libs.versions.toml"))
-        }
         create("frameworks") {
             from(files("gradle/frameworks.versions.toml"))
         }
@@ -34,3 +31,4 @@ pluginManagement {
 include("logtide-core")
 include("logtide-spring")
 include("logtide-ktor")
+include("logtide-jakarta")
