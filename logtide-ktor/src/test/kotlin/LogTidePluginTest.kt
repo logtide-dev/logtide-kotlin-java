@@ -3,13 +3,12 @@ import dev.logtide.sdk.currentTraceId
 import dev.logtide.sdk.ktor.LogTideClientKey
 import dev.logtide.sdk.ktor.LogTidePlugin
 import dev.logtide.sdk.ktor.LogTidePluginConfig
-import io.ktor.client.request.get
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.call
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.get
-import io.ktor.server.testing.testApplication
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.server.testing.*
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
@@ -25,8 +24,17 @@ import kotlin.time.Duration.Companion.seconds
  * Integration tests for LogTidePlugin (Ktor middleware)
  */
 class LogTidePluginTest {
-
     private lateinit var mockServer: MockWebServer
+
+    internal fun Application.installLogtideDefault(mockServer: MockWebServer) {
+        install(LogTidePlugin) {
+            apiUrl = mockServer.url("/").toString()
+            apiKey = "test_key"
+            serviceName = "test-service"
+            logRequests = false
+            logResponses = false
+        }
+    }
 
     @BeforeEach
     fun setup() {
@@ -44,13 +52,7 @@ class LogTidePluginTest {
     @Test
     fun `plugin should install successfully`() = testApplication {
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -68,13 +70,7 @@ class LogTidePluginTest {
         var clientFromAttributes: LogTideClient? = null
 
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -121,16 +117,8 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should not log request when disabled`() = testApplication {
-        var logsCount = 0
-
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -152,13 +140,7 @@ class LogTidePluginTest {
         var extractedTraceId: String? = null
 
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -170,7 +152,9 @@ class LogTidePluginTest {
 
         val traceId = "550e8400-e29b-41d4-a716-446655440000"
         client.get("/test") {
-            HtmlStyle.header("X-Trace-ID", traceId)
+            headers.apply {
+                append("X-Trace-ID", traceId)
+            }
         }
 
         assertEquals(traceId, extractedTraceId)
@@ -181,13 +165,7 @@ class LogTidePluginTest {
         var generatedTraceId: String? = null
 
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -228,7 +206,9 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            HtmlStyle.header("X-Trace-ID", headerTraceId)
+            headers.apply {
+                append("X-Trace-ID", headerTraceId)
+            }
         }
 
         assertEquals(headerTraceId, contextTraceId)
@@ -260,7 +240,9 @@ class LogTidePluginTest {
 
         val traceId = "custom-trace-123"
         client.get("/test") {
-            HtmlStyle.header("Custom-Trace-Header", traceId)
+            headers.apply {
+                append("X-Trace-ID", traceId)
+            }
         }
 
         assertEquals(traceId, extractedTraceId)
@@ -270,8 +252,6 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should skip health check path by default`() = testApplication {
-        var requestLogged = false
-
         application {
             install(LogTidePlugin) {
                 apiUrl = mockServer.url("/").toString()
@@ -429,7 +409,9 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            HtmlStyle.header("X-Trace-ID", headerTraceId)
+            headers.apply {
+                append("X-Trace-ID", headerTraceId)
+            }
         }
 
         // Without interceptor, context won't have trace ID
@@ -474,13 +456,7 @@ class LogTidePluginTest {
         val traceId = "550e8400-e29b-41d4-a716-446655440003"
 
         application {
-            install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
-                serviceName = "test-service"
-                logRequests = false
-                logResponses = false
-            }
+            installLogtideDefault(mockServer)
 
             routing {
                 get("/test") {
@@ -490,7 +466,9 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            HtmlStyle.header("X-Trace-ID", traceId)
+            headers.apply {
+                append("X-Trace-ID", traceId)
+            }
         }
 
         // After the request completes, ThreadLocal should be cleared
