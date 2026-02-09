@@ -1,5 +1,6 @@
 import dev.logtide.sdk.LogTideClient
 import dev.logtide.sdk.models.LogTideClientOptions
+import dev.logtide.sdk.spring.LogTideInterceptor
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
