@@ -5,6 +5,7 @@ package dev.logtide.sdk.spring
 import dev.logtide.sdk.LogTideClient
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 import org.springframework.web.servlet.HandlerInterceptor
 
 /**
@@ -32,21 +33,19 @@ class LogTideInterceptor(
     private val skipHealthCheck: Boolean = true,
     private val skipPaths: Set<String> = emptySet()
 ) : HandlerInterceptor {
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
     init {
-        println("╭────────────────────────────────────────────╮")
-        println("│  LogTide Interceptor Initialized          │")
-        println("╰────────────────────────────────────────────╯")
-        println("  Service Name: $serviceName")
-        println("  Log Requests: $logRequests")
-        println("  Log Responses: $logResponses")
-        println("  Log Errors: $logErrors")
-        println("  Skip Health Check: $skipHealthCheck")
+        logger.info("LogTide Interceptor Initialized")
+        logger.info("  Service Name: $serviceName")
+        logger.info("  Log Requests: $logRequests")
+        logger.info("  Log Responses: $logResponses")
+        logger.info("  Log Errors: $logErrors")
+        logger.info("  Skip Health Check: $skipHealthCheck")
         if (skipPaths.isNotEmpty()) {
-            println("  Skip Paths: ${skipPaths.joinToString(", ")}")
+            logger.info("  Skip Paths: ${skipPaths.joinToString(", ")}")
         }
-        println("✓ Spring Boot interceptor ready for HTTP logging")
-        println()
+        logger.info("  Spring Boot interceptor ready for HTTP logging")
     }
 
     companion object {

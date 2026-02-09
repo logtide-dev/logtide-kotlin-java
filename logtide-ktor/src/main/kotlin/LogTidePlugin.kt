@@ -154,9 +154,7 @@ val LogTidePlugin = createApplicationPlugin(
     val config = pluginConfig
 
     // Log plugin installation
-    application.log.info("╭────────────────────────────────────────────╮")
-    application.log.info("│  LogTide Plugin Initialized                │")
-    application.log.info("╰────────────────────────────────────────────╯")
+    application.log.info("LogTide Plugin Initialized")
     application.log.info("  Service Name: ${config.serviceName}")
     application.log.info("  API URL: ${config.apiUrl}")
     application.log.info("  Batch Size: ${config.batchSize}")
@@ -170,8 +168,8 @@ val LogTidePlugin = createApplicationPlugin(
     }
 
     val client = LogTideClient(config.toClientOptions())
-    application.log.info("✓ LogTide client created and ready")
-    application.log.info("✓ Access client manually via: call.application.attributes[LogTideClientKey]")
+    application.log.info("  LogTide client created and ready")
+    application.log.info("  Access client manually via: call.application.attributes[LogTideClientKey]")
 
     // Store client in application attributes for manual access
     application.attributes.put(LogTideClientKey, client)

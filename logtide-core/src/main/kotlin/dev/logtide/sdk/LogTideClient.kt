@@ -36,7 +36,7 @@ import kotlin.math.pow
  * retry logic, circuit breaker, and query capabilities.
  */
 class LogTideClient(private val options: LogTideClientOptions) {
-    private val logger = LoggerFactory.getLogger(LogTideClient::class.java)
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)

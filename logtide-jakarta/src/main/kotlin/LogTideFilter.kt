@@ -3,13 +3,10 @@
 package dev.logtide.sdk.jakarta
 
 import dev.logtide.sdk.LogTideClient
-import jakarta.servlet.Filter
-import jakarta.servlet.FilterChain
-import jakarta.servlet.FilterConfig
-import jakarta.servlet.ServletRequest
-import jakarta.servlet.ServletResponse
+import jakarta.servlet.*
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
 
 /**
  * Jakarta Servlet Filter for automatic HTTP request/response logging
@@ -38,21 +35,19 @@ class LogTideFilter(
     private val skipHealthCheck: Boolean = true,
     private val skipPaths: Set<String> = emptySet()
 ) : Filter {
+    private val logger = LoggerFactory.getLogger(this::class.java)
 
     init {
-        println("╭────────────────────────────────────────────╮")
-        println("│  LogTide Filter Initialized                │")
-        println("╰────────────────────────────────────────────╯")
-        println("  Service Name: $serviceName")
-        println("  Log Requests: $logRequests")
-        println("  Log Responses: $logResponses")
-        println("  Log Errors: $logErrors")
-        println("  Skip Health Check: $skipHealthCheck")
+        logger.info("LogTide Filter Initialized")
+        logger.info("  Service Name: $serviceName")
+        logger.info("  Log Requests: $logRequests")
+        logger.info("  Log Responses: $logResponses")
+        logger.info("  Log Errors: $logErrors")
+        logger.info("  Skip Health Check: $skipHealthCheck")
         if (skipPaths.isNotEmpty()) {
-            println("  Skip Paths: ${skipPaths.joinToString(", ")}")
+            logger.info("  Skip Paths: ${skipPaths.joinToString(", ")}")
         }
-        println("✓ Jakarta Servlet filter ready for HTTP logging")
-        println()
+        logger.info("  Jakarta Servlet filter ready for HTTP logging")
     }
 
     companion object {
