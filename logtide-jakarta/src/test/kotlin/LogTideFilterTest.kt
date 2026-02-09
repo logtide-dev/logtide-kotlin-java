@@ -1,4 +1,5 @@
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.jakarta.LogTideFilter
 import dev.logtide.sdk.models.LogTideClientOptions
 import io.mockk.every
 import io.mockk.mockk
