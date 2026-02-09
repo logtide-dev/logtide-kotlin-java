@@ -241,7 +241,7 @@ class LogTidePluginTest {
         val traceId = "custom-trace-123"
         client.get("/test") {
             headers.apply {
-                append("X-Trace-ID", traceId)
+                append("Custom-Trace-Header", traceId)
             }
         }
 
