@@ -7,29 +7,42 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 val kotlinJvmTarget: String by project
+val projectGroup: String by project
+val projectVersion: String by project
 
 plugins {
-    alias(libs.plugins.kotlin.jvm) apply true
-    alias(libs.plugins.maven.publish)
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.maven.publish) apply false
 }
 
-allprojects {
-    if (this == rootProject) return@allprojects
-    pluginManager.withPlugin("maven-publish") {
+subprojects {
+    if (projectGroup.isBlank() || projectVersion.isBlank()) {
+        throw GradleException("Project group and version must be defined in gradle.properties")
+    }
+
+    group = projectGroup
+    version = projectVersion
+
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "signing")
+
+    pluginManager.withPlugin("com.vanniktech.maven.publish") {
         pluginManager.withPlugin("signing") {
-            mavenPublishing {
-                publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-                signIfKeyPresent(this@allprojects)
+            extensions.configure<MavenPublishBaseExtension> {
+                publishToMavenCentral(
+                    SonatypeHost.CENTRAL_PORTAL,
+                    automaticRelease = true
+                )
+                signIfKeyPresent(this@subprojects)
 
                 pom {
-                    configureMavenCentralMetadata(this@allprojects)
+                    configureMavenCentralMetadata(this@subprojects)
                 }
             }
         }
     }
-}
 
-subprojects {
     plugins.withType<JavaPlugin>().configureEach {
         extensions.configure<JavaPluginExtension> {
             toolchain {
