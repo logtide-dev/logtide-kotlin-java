@@ -95,3 +95,27 @@ private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
         println("Skipping signing of artifacts: PGP key or password not found in environment variables")
     }
 }
+
+tasks.register("printVersion") {
+    doLast {
+        println(project.version.toString())
+    }
+}
+
+tasks.register("checkVersionTag") {
+    doLast {
+        val tag = System.getenv("GITHUB_REF_NAME")
+            ?.removePrefix("v")
+            ?: return@doLast
+
+        val versionString = project.version.toString()
+
+        if (versionString != tag) {
+            throw GradleException(
+                "Version mismatch: project.version=$versionString, tag=$tag"
+            )
+        }
+    }
+}
+
+tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
