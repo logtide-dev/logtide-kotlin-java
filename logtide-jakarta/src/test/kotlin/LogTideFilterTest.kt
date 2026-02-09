@@ -1,8 +1,8 @@
-package dev.logtide.sdk.middleware
-
 import dev.logtide.sdk.LogTideClient
 import dev.logtide.sdk.models.LogTideClientOptions
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import jakarta.servlet.FilterChain
 import jakarta.servlet.FilterConfig
 import jakarta.servlet.ServletRequest
@@ -14,7 +14,10 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.time.Duration.Companion.seconds
 
 /**

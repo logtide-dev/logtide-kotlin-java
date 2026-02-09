@@ -1,7 +1,13 @@
-package dev.logtide.sdk.middleware
+@file:Suppress("Unused")
+
+package dev.logtide.sdk.jakarta
 
 import dev.logtide.sdk.LogTideClient
-import jakarta.servlet.*
+import jakarta.servlet.Filter
+import jakarta.servlet.FilterChain
+import jakarta.servlet.FilterConfig
+import jakarta.servlet.ServletRequest
+import jakarta.servlet.ServletResponse
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 

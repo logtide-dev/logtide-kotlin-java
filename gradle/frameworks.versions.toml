@@ -9,3 +9,17 @@ jakarta = "6.0.0"
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta" }
+
+# Test
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+
+spring-test = { module = "org.springframework:spring-test", version = "6.1.1" }
+spring-webmvc = { module = "org.springframework:spring-webmvc", version = "6.1.1" }
+spring-boot-test = { module = "org.springframework.boot:spring-boot-test", version.ref = "spring-boot" }
+
+[bundles]
+test-ktor = ["ktor-server-test-host", "ktor-server-content-negotiation", "ktor-serialization-kotlinx-json"]
+test-spring = ["spring-test", "spring-webmvc", "spring-boot-test"]
+test-jakarta = ["jakarta-servlet-api"]

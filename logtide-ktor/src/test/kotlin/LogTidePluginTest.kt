@@ -1,26 +1,24 @@
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.DelicateCoroutinesApi::class)
-
-package dev.logtide.sdk.middleware
-
 import dev.logtide.sdk.LogTideClient
-import dev.logtide.sdk.TraceIdElement
 import dev.logtide.sdk.currentTraceId
-import dev.logtide.sdk.threadLocalTraceId
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import io.ktor.server.testing.*
-import io.mockk.*
-import kotlinx.coroutines.runBlocking
+import dev.logtide.sdk.ktor.LogTideClientKey
+import dev.logtide.sdk.ktor.LogTidePlugin
+import dev.logtide.sdk.ktor.LogTidePluginConfig
+import io.ktor.client.request.get
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.call
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.testing.testApplication
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -34,13 +32,11 @@ class LogTidePluginTest {
     fun setup() {
         mockServer = MockWebServer()
         mockServer.start()
-        threadLocalTraceId.set(null)
     }
 
     @AfterEach
     fun cleanup() {
         mockServer.shutdown()
-        threadLocalTraceId.set(null)
     }
 
     // ==================== Plugin Installation Tests ====================
@@ -174,7 +170,7 @@ class LogTidePluginTest {
 
         val traceId = "550e8400-e29b-41d4-a716-446655440000"
         client.get("/test") {
-            header("X-Trace-ID", traceId)
+            HtmlStyle.header("X-Trace-ID", traceId)
         }
 
         assertEquals(traceId, extractedTraceId)
@@ -232,7 +228,7 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            header("X-Trace-ID", headerTraceId)
+            HtmlStyle.header("X-Trace-ID", headerTraceId)
         }
 
         assertEquals(headerTraceId, contextTraceId)
@@ -264,7 +260,7 @@ class LogTidePluginTest {
 
         val traceId = "custom-trace-123"
         client.get("/test") {
-            header("Custom-Trace-Header", traceId)
+            HtmlStyle.header("Custom-Trace-Header", traceId)
         }
 
         assertEquals(traceId, extractedTraceId)
@@ -433,7 +429,7 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            header("X-Trace-ID", headerTraceId)
+            HtmlStyle.header("X-Trace-ID", headerTraceId)
         }
 
         // Without interceptor, context won't have trace ID
@@ -494,7 +490,7 @@ class LogTidePluginTest {
         }
 
         client.get("/test") {
-            header("X-Trace-ID", traceId)
+            HtmlStyle.header("X-Trace-ID", traceId)
         }
 
         // After the request completes, ThreadLocal should be cleared

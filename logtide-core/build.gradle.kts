@@ -6,6 +6,4 @@ plugins {
 dependencies {
     implementation(libs.bundles.kotlin.serialization)
     implementation(libs.bundles.okhttp)
-
-    testImplementation(libs.bundles.test.okhttp)
 }

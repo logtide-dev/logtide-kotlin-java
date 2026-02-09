@@ -16,6 +16,7 @@ class LogtideConventionPlugin : Plugin<Project> {
 
                 add("testImplementation", libs.findBundle("test-slf4j").get())
                 add("testImplementation", libs.findBundle("test-kotlin").get())
+                add("testImplementation", libs.findBundle("test-okhttp").get())
             }
         }
     }

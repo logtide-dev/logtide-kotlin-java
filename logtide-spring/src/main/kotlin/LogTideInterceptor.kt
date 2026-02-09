@@ -1,4 +1,6 @@
-package dev.logtide.sdk.middleware
+@file:Suppress("Unused")
+
+package dev.logtide.sdk.spring
 
 import dev.logtide.sdk.LogTideClient
 import jakarta.servlet.http.HttpServletRequest

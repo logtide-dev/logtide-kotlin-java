@@ -1,6 +1,7 @@
 @file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
+@file:Suppress("Unused")
 
-package dev.logtide.sdk.middleware
+package dev.logtide.sdk.ktor
 
 import dev.logtide.sdk.LogTideClient
 import dev.logtide.sdk.TraceIdElement
