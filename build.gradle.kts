@@ -1,165 +1,103 @@
 import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SonatypeHost
+import helpers.configureMavenCentralMetadata
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
+val kotlinJvmTarget: String by project
+val projectGroup: String by project
+val projectVersion: String by project
+
 plugins {
-    kotlin("jvm") version "1.9.21"
-    kotlin("plugin.serialization") version "1.9.21"
-    id("org.jetbrains.dokka") version "1.9.10"
-    id("com.vanniktech.maven.publish") version "0.29.0"
+    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.maven.publish) apply false
 }
 
-group = "io.github.logtide-dev"
-version = "0.4.0"
+subprojects {
+    if (projectGroup.isBlank() || projectVersion.isBlank()) {
+        throw GradleException("Project group and version must be defined in gradle.properties")
+    }
 
-repositories {
-    mavenCentral()
-}
+    group = projectGroup
+    version = projectVersion
 
-dependencies {
-    // Kotlin
-    implementation(kotlin("stdlib"))
+    apply(plugin = "org.jetbrains.kotlin.jvm")
+    apply(plugin = "com.vanniktech.maven.publish")
+    apply(plugin = "signing")
 
-    // HTTP Client
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
+    pluginManager.withPlugin("com.vanniktech.maven.publish") {
+        pluginManager.withPlugin("signing") {
+            extensions.configure<MavenPublishBaseExtension> {
+                publishToMavenCentral(
+                    SonatypeHost.CENTRAL_PORTAL,
+                    automaticRelease = true
+                )
+                signIfKeyPresent(this@subprojects)
 
-    // JSON Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+                pom {
+                    configureMavenCentralMetadata(this@subprojects)
+                }
+            }
+        }
+    }
 
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    plugins.withType<JavaPlugin>().configureEach {
+        extensions.configure<JavaPluginExtension> {
+            toolchain {
+                languageVersion.set(JavaLanguageVersion.of(kotlinJvmTarget))
+                vendor.set(JvmVendorSpec.AMAZON)
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+    }
 
-    // Logging
-    compileOnly("org.slf4j:slf4j-api:2.0.9")
+    plugins.withId("org.jetbrains.kotlin.jvm") {
+        extensions.configure<KotlinJvmProjectExtension> {
+            jvmToolchain(kotlinJvmTarget.toInt())
+        }
+    }
 
-    // Framework integrations
-    compileOnly("org.springframework.boot:spring-boot-starter-web:3.2.0")
-    compileOnly("io.ktor:ktor-server-core:2.3.7")
-    compileOnly("jakarta.servlet:jakarta.servlet-api:6.0.0")
+    tasks.withType<KotlinCompile> {
+        kotlinOptions {
+            freeCompilerArgs = listOf("-Xjsr305=strict")
+            jvmTarget = kotlinJvmTarget
+        }
+    }
 
-    // Testing
-    testImplementation(kotlin("test"))
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    testImplementation("io.mockk:mockk:1.13.8")
-
-    // Logging for tests (required since slf4j-api is compileOnly)
-    testImplementation("org.slf4j:slf4j-api:2.0.9")
-    testImplementation("org.slf4j:slf4j-simple:2.0.9")
-
-    // Framework testing dependencies
-    testImplementation("io.ktor:ktor-server-test-host:2.3.7")
-    testImplementation("io.ktor:ktor-server-content-negotiation:2.3.7")
-    testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.3.7")
-    testImplementation("org.springframework:spring-test:6.1.1")
-    testImplementation("org.springframework:spring-webmvc:6.1.1")
-    testImplementation("org.springframework.boot:spring-boot-test:3.2.0")
-    testImplementation("jakarta.servlet:jakarta.servlet-api:6.0.0")
-}
-
-tasks.withType<KotlinCompile> {
-    kotlinOptions {
-        freeCompilerArgs = listOf("-Xjsr305=strict")
-        jvmTarget = "17"
+    tasks.withType<Test> {
+        useJUnitPlatform()
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+@OptIn(ExperimentalEncodingApi::class)
+private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
+    val keyId = System.getenv("KEY_ID")
+    val keyBytes = runCatching {
+        Base64.decode(System.getenv("SECRING").toByteArray()).decodeToString()
+    }.getOrNull()
+    val keyPassword = System.getenv("PASSWORD")
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
-mavenPublishing {
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
-    signIfKeyPresent(project)
-
-    coordinates("io.github.logtide-dev", "logtide-sdk-kotlin", version.toString())
-
-    pom {
-        name.set("LogTide Kotlin SDK")
-        description.set("Official Kotlin SDK for LogTide - Self-hosted log management with batching, retry logic, circuit breaker, and query API")
-        url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
-
-        licenses {
-            license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
+    if (keyBytes != null && keyPassword != null) {
+        println("Signing artifacts with in-memory PGP key (.gpg)")
+        project.extensions.configure<SigningExtension>("signing") {
+            // For binary .gpg keys
+            if (keyId == null) {
+                useInMemoryPgpKeys(keyBytes, keyPassword)
+            } else {
+                useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
             }
+            signAllPublications()
         }
-
-        developers {
-            developer {
-                id.set("polliog")
-                name.set("Polliog")
-                email.set("giuseppe@solture.it")
-            }
-            developer {
-                id.set("emanueleiannuzzi")
-                name.set("Emanuele Iannuzzi")
-                email.set("hello@emanueleiannuzzi.me")
-            }
-        }
-
-        scm {
-            connection.set("scm:git:git://github.com/logtide-dev/logtide-sdk-kotlin.git")
-            developerConnection.set("scm:git:ssh://github.com/logtide-dev/logtide-sdk-kotlin.git")
-            url.set("https://github.com/logtide-dev/logtide-sdk-kotlin")
-        }
+    } else {
+        println("Skipping signing of artifacts: PGP key or password not found in environment variables")
     }
 }
 
 tasks.register("printVersion") {
     doLast {
         println(project.version.toString())
-    }
-}
-
-tasks.register("checkVersionTag") {
-    doLast {
-        val tag = System.getenv("GITHUB_REF_NAME")
-            ?.removePrefix("v")
-            ?: return@doLast
-
-        val versionString = project.version.toString()
-
-        if (versionString != tag) {
-            throw GradleException(
-                "Version mismatch: project.version=$versionString, tag=$tag"
-            )
-        }
-    }
-}
-
-tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
-
-@OptIn(ExperimentalEncodingApi::class)
-fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
-    val keyId = System.getenv("KEY_ID").also {
-        if (it == null) {
-            println("KEY_ID environment variable not set, assuming binary .gpg key.")
-        }
-    }
-    val keyBytes = System.getenv("SECRING")?.let { Base64.decode(it.toByteArray()).decodeToString() }
-    val keyPassword = System.getenv("PASSWORD")
-
-    if (keyBytes == null || keyPassword == null) {
-        println("Signing environment variables not set, skipping signing.")
-        return
-    }
-
-    project.extensions.configure<SigningExtension>("signing") {
-        // For binary .gpg keys
-        if (keyId == null) {
-            useInMemoryPgpKeys(keyBytes, keyPassword)
-        } else {
-            useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
-        }
-        signAllPublications()
     }
 }

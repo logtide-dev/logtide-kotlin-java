@@ -1,3 +1,19 @@
+rootProject.name = "logtide-kotlin-java"
+
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("frameworks") {
+            from(files("gradle/frameworks.versions.toml"))
+        }
+    }
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = uri("https://packages.confluent.io/maven/") }
+    }
+}
+
 pluginManagement {
     repositories {
         gradlePluginPortal()
@@ -12,4 +28,7 @@ pluginManagement {
     }
 }
 
-rootProject.name = "logtide-sdk-kotlin"
+include("logtide-core")
+include("logtide-spring")
+include("logtide-ktor")
+include("logtide-jakarta")
