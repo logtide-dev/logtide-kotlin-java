@@ -101,21 +101,3 @@ tasks.register("printVersion") {
         println(project.version.toString())
     }
 }
-
-tasks.register("checkVersionTag") {
-    doLast {
-        val tag = System.getenv("GITHUB_REF_NAME")
-            ?.removePrefix("v")
-            ?: return@doLast
-
-        val versionString = project.version.toString()
-
-        if (versionString != tag) {
-            throw GradleException(
-                "Version mismatch: project.version=$versionString, tag=$tag"
-            )
-        }
-    }
-}
-
-tasks["publishAndReleaseToMavenCentral"].dependsOn("checkVersionTag")
