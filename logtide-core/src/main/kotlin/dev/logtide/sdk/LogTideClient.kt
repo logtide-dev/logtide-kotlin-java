@@ -23,8 +23,6 @@ import okhttp3.sse.EventSources
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.pow
@@ -67,10 +65,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
     // Trace ID context (uses shared ThreadLocal from TraceIdContext for coroutine compatibility)
     internal val traceIdContext: ThreadLocal<String?> get() = threadLocalTraceId
 
-    // Periodic flush timer
-    private val flushExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
-        thread(start = false, name = "LogTide-Flush-Timer", isDaemon = true) { r.run() }
-    }
+    private lateinit var flushJob: Job
 
     // Coroutine scope for async operations
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -81,12 +76,14 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
     init {
         // Setup periodic flush
-        flushExecutor.scheduleAtFixedRate(
-            { runBlocking { flush() } },
-            options.flushInterval.inWholeMilliseconds,
-            options.flushInterval.inWholeMilliseconds,
-            TimeUnit.MILLISECONDS
-        )
+        suspend {
+            flushJob = scope.launch {
+                while (isActive) {
+                    delay(options.flushInterval)
+                    flush()
+                }
+            }
+        }
 
         // Register shutdown hook for graceful cleanup
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
@@ -227,6 +224,15 @@ class LogTideClient(private val options: LogTideClientOptions) {
         }
     }
 
+    fun metadataOrErrorToMap(metadataOrError: Any?): Map<String, Any>? {
+        return when (metadataOrError) {
+            is Throwable -> mapOf("error" to serializeError(metadataOrError))
+            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
+            null -> null
+            else -> mapOf("data" to metadataOrError)
+        }
+    }
+
     /**
      * Log debug message
      */
@@ -253,12 +259,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Can accept either metadata map or Throwable
      */
     fun error(service: String, message: String, metadataOrError: Any? = null) {
-        val metadata = when (metadataOrError) {
-            is Throwable -> mapOf("error" to serializeError(metadataOrError))
-            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
-            null -> null
-            else -> mapOf("data" to metadataOrError)
-        }
+        val metadata = metadataOrErrorToMap(metadataOrError)
         log(LogEntry(service, LogLevel.ERROR, message, metadata = metadata))
     }
 
@@ -267,12 +268,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Can accept either metadata map or Throwable
      */
     fun critical(service: String, message: String, metadataOrError: Any? = null) {
-        val metadata = when (metadataOrError) {
-            is Throwable -> mapOf("error" to serializeError(metadataOrError))
-            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
-            null -> null
-            else -> mapOf("data" to metadataOrError)
-        }
+        val metadata = metadataOrErrorToMap(metadataOrError)
         log(LogEntry(service, LogLevel.CRITICAL, message, metadata = metadata))
     }
 
@@ -537,11 +533,10 @@ class LogTideClient(private val options: LogTideClientOptions) {
         }
 
         flush()
-        flushExecutor.shutdown()
-        withContext(Dispatchers.IO) {
-            flushExecutor.awaitTermination(5, TimeUnit.SECONDS)
+        runCatching {
+            scope.cancel()
         }
-        scope.cancel()
+
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
     }
@@ -564,11 +559,32 @@ class LogTideClient(private val options: LogTideClientOptions) {
         }
     }
 
+    /**
+     * @see <a href="https://logtide.dev/docs/error-handling/">StructuredException Interface</a>
+     */
     private fun serializeError(error: Throwable): Map<String, Any?> {
+        fun serializeStacktrace(stacktrace: String): List<Map<String, Any?>> {
+            return stacktrace.lines().map { line ->
+                val regex = """^\s*at\s+(\S+)\s+\(([^:]+):(\d+)\)$""".toRegex()
+                val match = regex.find(line)
+                if (match != null) {
+                    mapOf(
+                        "function" to match.groupValues[1],
+                        "file" to match.groupValues[2],
+                        "line" to match.groupValues[3].toIntOrNull()
+                    )
+                } else {
+                    mapOf("raw" to line.trim())
+                }
+            }
+        }
+
         return mapOf(
-            "name" to error::class.simpleName,
+            "type" to error::class.simpleName,
             "message" to error.message,
-            "stack" to error.stackTraceToString()
+            "stacktrace" to error.stackTraceToString(),
+            "language" to "kotlin",
+            "cause" to error.cause?.let { serializeError(it) },
         )
     }
 
