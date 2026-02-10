@@ -1,4 +1,4 @@
-package dev.logtide.sdk.models
+package dev.logtide.sdk.serializers
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -12,34 +12,14 @@ import kotlinx.serialization.json.*
  * Custom serializer for Any type in metadata maps
  * Handles primitive types, lists, and nested maps
  */
-object AnyValueSerializer : KSerializer<Any> {
+internal object AnyValueSerializer : KSerializer<Any> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("AnyValue", PrimitiveKind.STRING)
 
     override fun serialize(encoder: Encoder, value: Any) {
         val jsonEncoder = encoder as? JsonEncoder
             ?: throw IllegalStateException("This serializer can only be used with Json")
-
-        val element = when (value) {
-            is Number -> JsonPrimitive(value)
-            is String -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is Map<*, *> -> buildJsonObject {
-                value.forEach { (k, v) ->
-                    if (k is String && v != null) {
-                        put(k, serializeValue(v))
-                    }
-                }
-            }
-            is List<*> -> buildJsonArray {
-                value.forEach { item ->
-                    if (item != null) {
-                        add(serializeValue(item))
-                    }
-                }
-            }
-            else -> JsonPrimitive(value.toString())
-        }
+        val element = serializeValue(value)
 
         jsonEncoder.encodeJsonElement(element)
     }
@@ -62,6 +42,7 @@ object AnyValueSerializer : KSerializer<Any> {
                 }
             }
         }
+
         is List<*> -> buildJsonArray {
             value.forEach { item ->
                 if (item != null) {
@@ -69,6 +50,7 @@ object AnyValueSerializer : KSerializer<Any> {
                 }
             }
         }
+
         else -> JsonPrimitive(value.toString())
     }
 
@@ -82,6 +64,7 @@ object AnyValueSerializer : KSerializer<Any> {
                 else -> element.content
             }
         }
+
         is JsonObject -> element.mapValues { deserializeJsonElement(it.value) }
         is JsonArray -> element.map { deserializeJsonElement(it) }
     }

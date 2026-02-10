@@ -1,4 +1,4 @@
-package dev.logtide.sdk.models
+package dev.logtide.sdk.serializers
 
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
@@ -11,7 +11,7 @@ import java.time.Instant
 /**
  * Custom serializer for java.time.Instant
  */
-object InstantSerializer : KSerializer<Instant> {
+internal object InstantSerializer : KSerializer<Instant> {
     override val descriptor: SerialDescriptor =
         PrimitiveSerialDescriptor("Instant", PrimitiveKind.STRING)
 
