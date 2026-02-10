@@ -5,6 +5,7 @@ package dev.logtide.sdk
 import kotlinx.coroutines.CopyableThreadContextElement
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -92,6 +93,6 @@ class TraceIdElement(
  * ```
  */
 suspend fun currentTraceId(): String? {
-    return kotlin.coroutines.coroutineContext[TraceIdElement]?.traceId
+    return currentCoroutineContext()[TraceIdElement]?.traceId
         ?: threadLocalTraceId.get()
 }
