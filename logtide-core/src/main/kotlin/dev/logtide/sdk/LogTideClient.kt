@@ -25,6 +25,7 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.coroutines.coroutineContext
 import kotlin.math.pow
 
 /**
@@ -151,17 +152,19 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * }
      * ```
      */
-    suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend () -> T): T {
+    suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend CoroutineScope.() -> T): T {
         val normalizedTraceId = normalizeTraceId(traceId) ?: UUID.randomUUID().toString()
         return withContext(TraceIdElement(normalizedTraceId)) {
-            block()
+            coroutineScope {
+                block()
+            }
         }
     }
 
     /**
      * Execute suspend function with a new auto-generated trace ID (coroutine-safe)
      */
-    suspend fun <T> withNewTraceIdSuspend(block: suspend () -> T): T {
+    suspend fun <T> withNewTraceIdSuspend(block: suspend CoroutineScope.() -> T): T {
         return withTraceIdSuspend(UUID.randomUUID().toString(), block)
     }
 

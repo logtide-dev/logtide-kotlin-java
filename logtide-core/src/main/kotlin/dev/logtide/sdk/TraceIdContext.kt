@@ -35,7 +35,7 @@ internal val threadLocalTraceId = ThreadLocal<String?>()
  * ```
  */
 @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
-class TraceIdElement(
+data class TraceIdElement(
     val traceId: String
 ) : CopyableThreadContextElement<String?> {
 
@@ -66,7 +66,7 @@ class TraceIdElement(
      * Returns a copy of this element for the child coroutine.
      */
     override fun copyForChild(): CopyableThreadContextElement<String?> {
-        return TraceIdElement(traceId)
+        return copy()
     }
 
     /**
