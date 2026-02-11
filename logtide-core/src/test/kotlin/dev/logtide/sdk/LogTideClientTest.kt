@@ -43,7 +43,7 @@ class LogTideClientTest {
         runBlocking {
             try {
                 client.close()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Ignore other errors during cleanup
             }
         }
@@ -73,7 +73,7 @@ class LogTideClientTest {
         runBlocking {
             try {
                 clientWithMetadata.close()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Expected - no real server
             }
         }
@@ -223,7 +223,7 @@ class LogTideClientTest {
         runBlocking {
             try {
                 smallBufferClient.close()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Expected
             }
         }

@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.DelicateCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 
 package dev.logtide.sdk
 
