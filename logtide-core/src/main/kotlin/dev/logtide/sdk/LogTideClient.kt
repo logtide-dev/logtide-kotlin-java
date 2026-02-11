@@ -65,8 +65,6 @@ class LogTideClient(private val options: LogTideClientOptions) {
     // Trace ID context (uses shared ThreadLocal from TraceIdContext for coroutine compatibility)
     internal val traceIdContext: ThreadLocal<String?> get() = threadLocalTraceId
 
-    private lateinit var flushJob: Job
-
     // Coroutine scope for async operations
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -76,12 +74,10 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
     init {
         // Setup periodic flush
-        suspend {
-            flushJob = scope.launch {
-                while (isActive) {
-                    delay(options.flushInterval)
-                    flush()
-                }
+        scope.launch {
+            while (isActive) {
+                delay(options.flushInterval)
+                flush()
             }
         }
 
