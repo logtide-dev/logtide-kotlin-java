@@ -34,6 +34,10 @@ import kotlin.math.pow
  * retry logic, circuit breaker, and query capabilities.
  */
 class LogTideClient(private val options: LogTideClientOptions) {
+    companion object {
+        private const val MAX_TRACEID_LENGTH = 250
+    }
+
     private val logger = LoggerFactory.getLogger(this::class.java)
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
@@ -152,7 +156,8 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * ```
      */
     suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend CoroutineScope.() -> T): T {
-        val normalizedTraceId = normalizeTraceId(traceId) ?: UUID.randomUUID().toString()
+        val normalizedTraceId =
+            normalizeTraceId(traceId) ?: throw IllegalArgumentException("Invalid trace ID: $traceId")
         return withContext(TraceIdElement(normalizedTraceId)) {
             coroutineScope {
                 block()
@@ -544,12 +549,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
     internal fun normalizeTraceId(traceId: String?): String? {
         if (traceId == null) return null
 
-        val uuidRegex =
-            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".toRegex(RegexOption.IGNORE_CASE)
-
-        return if (uuidRegex.matches(traceId)) {
-            traceId
-        } else {
+        return traceId.ifBlank {
             if (options.debug) {
                 logger.error("Invalid trace ID '$traceId', generating new UUID")
             }
