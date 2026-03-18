@@ -11,7 +11,7 @@ val projectGroup: String by project
 val projectVersion: String by project
 
 plugins {
-    alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.maven.publish) apply false
 }
 
