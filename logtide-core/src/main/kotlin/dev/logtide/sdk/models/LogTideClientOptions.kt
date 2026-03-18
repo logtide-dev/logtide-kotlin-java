@@ -8,19 +8,19 @@ import kotlin.time.Duration.Companion.seconds
  * Configuration options for LogTide client
  */
 data class LogTideClientOptions(
-    val apiUrl: String,
-    val apiKey: String,
-    val batchSize: Int = 100,
-    val flushInterval: Duration = 5.seconds,
-    val maxBufferSize: Int = 10000,
-    val maxRetries: Int = 3,
-    val retryDelay: Duration = 1.seconds,
-    val circuitBreakerThreshold: Int = 5,
-    val circuitBreakerReset: Duration = 30.seconds,
-    val enableMetrics: Boolean = true,
-    val debug: Boolean = false,
-    val globalMetadata: Map<String, Any> = emptyMap(),
-    val autoTraceId: Boolean = false
+    var apiUrl: String,
+    var apiKey: String,
+    var batchSize: Int = 100,
+    var flushInterval: Duration = 5.seconds,
+    var maxBufferSize: Int = 10000,
+    var maxRetries: Int = 3,
+    var retryDelay: Duration = 1.seconds,
+    var circuitBreakerThreshold: Int = 5,
+    var circuitBreakerReset: Duration = 30.seconds,
+    var enableMetrics: Boolean = true,
+    var debug: Boolean = false,
+    var globalMetadata: Map<String, Any> = emptyMap(),
+    var autoTraceId: Boolean = false
 ) {
     init {
         require(apiUrl.isNotBlank()) { "apiUrl cannot be blank" }

@@ -199,10 +199,13 @@ class LogTideClient(private val options: LogTideClientOptions) {
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()
-            if (contextTraceId != null) {
-                finalEntry = finalEntry.copy(traceId = contextTraceId)
+            finalEntry = if (contextTraceId != null) {
+                finalEntry.copy(traceId = contextTraceId)
             } else if (options.autoTraceId) {
-                finalEntry = finalEntry.copy(traceId = UUID.randomUUID().toString())
+                finalEntry.copy(traceId = UUID.randomUUID().toString())
+            } else {
+                logger.error("Missing trace ID for log, log will be dropped. Consider enabling autoTraceId in client options.")
+                return
             }
         }
 
@@ -386,7 +389,11 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code}: ${response.message}")
+                if (options.debug) {
+                    logger.error(response.body?.charStream()?.readText())
+                    logger.error(payload.toString())
+                }
+                throw IOException("Failed to send logs: HTTP ${response.code} - ${response.message}")
             }
         }
     }
@@ -577,13 +584,21 @@ class LogTideClient(private val options: LogTideClientOptions) {
             }
         }
 
-        return mapOf(
-            "type" to error::class.simpleName,
-            "message" to error.message,
-            "stacktrace" to error.stackTraceToString(),
-            "language" to "kotlin",
-            "cause" to error.cause?.let { serializeError(it) },
-        )
+        val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+
+        fun serializeRecursive(current: Throwable): Map<String, Any?> {
+            visited.add(current)
+
+            return mapOf(
+                "type" to current::class.simpleName,
+                "message" to current.message,
+                "stacktrace" to serializeStacktrace(current.stackTraceToString()),
+                "language" to "kotlin",
+                "cause" to current.cause?.takeIf { visited.add(it) }?.let { serializeRecursive(it) },
+            )
+        }
+
+        return serializeRecursive(error)
     }
 
     private fun updateLatency(latency: Double) {

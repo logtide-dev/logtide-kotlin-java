@@ -19,9 +19,10 @@ import io.ktor.http.*
 fun main() {
     embeddedServer(Netty, port = 8080) {
         // Install LogTide plugin
+        val apiUrl = "http://localhost:8080"
+        val apiKey = "lp_your_api_key_here"
+
         install(LogTidePlugin) {
-            apiUrl = "http://localhost:8080"
-            apiKey = "lp_your_api_key_here"
             serviceName = "ktor-app"
 
             // Optional configuration
@@ -31,16 +32,17 @@ fun main() {
             skipHealthCheck = true
             skipPaths = setOf("/metrics", "/internal")
 
-            // LogTide client options
-            batchSize = 100
-            flushInterval = kotlin.time.Duration.parse("5s")
-            maxBufferSize = 10000
-            enableMetrics = true
-            debug = false
-            globalMetadata = mapOf(
-                "env" to "production",
-                "version" to "1.0.0"
-            )
+            logtideClientOptions(apiUrl, apiKey) {
+                batchSize = 100
+                flushInterval = kotlin.time.Duration.parse("5s")
+                maxBufferSize = 10000
+                enableMetrics = true
+                debug = false
+                globalMetadata = mapOf(
+                    "env" to "production",
+                    "version" to "1.0.0"
+                )
+            }
         }
 
         routing {
