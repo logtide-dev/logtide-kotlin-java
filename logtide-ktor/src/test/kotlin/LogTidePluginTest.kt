@@ -27,9 +27,13 @@ class LogTidePluginTest {
     private lateinit var mockServer: MockWebServer
 
     internal fun Application.installLogtideDefault(mockServer: MockWebServer) {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
         install(LogTidePlugin) {
-            apiUrl = mockServer.url("/").toString()
-            apiKey = "test_key"
+            logtideClientOptions(apiUrl, apiKey) {
+                batchSize = 1
+                flushInterval = 1.seconds
+            }
             serviceName = "test-service"
             logRequests = false
             logResponses = false
@@ -92,14 +96,17 @@ class LogTidePluginTest {
         mockServer.enqueue(MockResponse().setResponseCode(200))
         mockServer.enqueue(MockResponse().setResponseCode(200))
 
+        val apiUrl = mockServer.url("/api/v1/ingest").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/api/v1/ingest").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = true
                 logResponses = false
-                batchSize = 1 // Flush immediately
+                logtideClientOptions(apiUrl, apiKey) {
+                    batchSize = 1 // Flush immediately}
+                }
             }
 
             routing {
@@ -187,14 +194,16 @@ class LogTidePluginTest {
         var contextTraceId: String? = null
         val headerTraceId = "550e8400-e29b-41d4-a716-446655440001"
 
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = false
                 logResponses = false
                 useDefaultInterceptor = true
+                logtideClientOptions(apiUrl, apiKey)
             }
 
             routing {
@@ -218,16 +227,18 @@ class LogTidePluginTest {
     fun `plugin should use custom trace ID extractor`() = testApplication {
         var extractedTraceId: String? = null
 
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = false
                 logResponses = false
                 extractTraceIdFromCall = { call ->
                     call.request.headers["Custom-Trace-Header"]
                 }
+                logtideClientOptions(apiUrl, apiKey)
             }
 
             routing {
@@ -252,14 +263,16 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should skip health check path by default`() = testApplication {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = true
                 logResponses = true
                 skipHealthCheck = true
+                logtideClientOptions(apiUrl, apiKey)
             }
 
             routing {
@@ -277,14 +290,16 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should skip custom paths`() = testApplication {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = true
                 logResponses = true
                 skipPaths = setOf("/metrics", "/status")
+                logtideClientOptions(apiUrl, apiKey)
             }
 
             routing {
@@ -308,15 +323,18 @@ class LogTidePluginTest {
         mockServer.enqueue(MockResponse().setResponseCode(200))
         mockServer.enqueue(MockResponse().setResponseCode(200))
 
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/api/v1/ingest").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 skipHealthCheck = false
                 logRequests = true
                 logResponses = true
-                batchSize = 1
+                logtideClientOptions(apiUrl, apiKey) {
+                    batchSize = 1
+                }
             }
 
             routing {
@@ -339,10 +357,11 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should use custom request metadata extractor`() = testApplication {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = true
                 logResponses = false
@@ -352,6 +371,7 @@ class LogTidePluginTest {
                         "traceId" to traceId
                     )
                 }
+                logtideClientOptions(apiUrl, apiKey)
             }
         }
 
@@ -361,10 +381,11 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin should use custom response metadata extractor`() = testApplication {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = false
                 logResponses = true
@@ -376,6 +397,7 @@ class LogTidePluginTest {
                         "processingTime" to (duration ?: 0L)
                     )
                 }
+                logtideClientOptions(apiUrl, apiKey)
             }
         }
 
@@ -389,14 +411,16 @@ class LogTidePluginTest {
         var contextTraceId: String? = "not-set"
         val headerTraceId = "550e8400-e29b-41d4-a716-446655440002"
 
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = false
                 logResponses = false
                 useDefaultInterceptor = false
+                logtideClientOptions(apiUrl, apiKey)
             }
 
             routing {
@@ -426,14 +450,17 @@ class LogTidePluginTest {
         mockServer.enqueue(MockResponse().setResponseCode(200))
         mockServer.enqueue(MockResponse().setResponseCode(200))
 
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         application {
             install(LogTidePlugin) {
-                apiUrl = mockServer.url("/api/v1/ingest").toString()
-                apiKey = "test_key"
                 serviceName = "test-service"
                 logRequests = false
                 logResponses = true
-                batchSize = 1
+                logtideClientOptions(apiUrl, apiKey) {
+                    batchSize = 1
+                }
             }
 
             routing {
@@ -479,20 +506,23 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin config should convert to client options`() {
+        val apiUrl = mockServer.url("/").toString()
+        val apiKey = "test_key"
+
         val config = LogTidePluginConfig().apply {
-            apiUrl = "http://localhost:8080"
-            apiKey = "test_key"
-            batchSize = 50
-            flushInterval = 10.seconds
-            maxBufferSize = 5000
-            enableMetrics = false
-            debug = true
-            globalMetadata = mapOf("env" to "test")
+            logtideClientOptions(apiUrl, apiKey) {
+                batchSize = 50
+                flushInterval = 10.seconds
+                maxBufferSize = 5000
+                enableMetrics = false
+                debug = true
+                globalMetadata = mapOf("env" to "test")
+            }
         }
 
         val options = config.toClientOptions()
 
-        assertEquals("http://localhost:8080", options.apiUrl)
+        assertEquals(apiUrl, options.apiUrl)
         assertEquals("test_key", options.apiKey)
         assertEquals(50, options.batchSize)
         assertEquals(10.seconds, options.flushInterval)
@@ -504,20 +534,20 @@ class LogTidePluginTest {
 
     @Test
     fun `plugin config should have correct defaults`() {
-        val config = LogTidePluginConfig()
+        val config = LogTidePluginConfig().apply {
+            logtideClientOptions("no-url", "no-key")
+        }
 
-        assertEquals("", config.apiUrl)
-        assertEquals("", config.apiKey)
         assertEquals("ktor-app", config.serviceName)
         assertTrue(config.logErrors)
         assertTrue(config.skipHealthCheck)
         assertTrue(config.skipPaths.isEmpty())
-        assertEquals(100, config.batchSize)
-        assertEquals(5.seconds, config.flushInterval)
-        assertEquals(10000, config.maxBufferSize)
-        assertTrue(config.enableMetrics)
-        assertFalse(config.debug)
-        assertTrue(config.globalMetadata.isEmpty())
+        assertEquals(100, config.clientOptions.batchSize)
+        assertEquals(5.seconds, config.clientOptions.flushInterval)
+        assertEquals(10000, config.clientOptions.maxBufferSize)
+        assertTrue(config.clientOptions.enableMetrics)
+        assertFalse(config.clientOptions.debug)
+        assertTrue(config.clientOptions.globalMetadata.isEmpty())
         assertTrue(config.logRequests)
         assertTrue(config.logResponses)
         assertTrue(config.useDefaultInterceptor)

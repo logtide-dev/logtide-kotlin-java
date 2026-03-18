@@ -114,7 +114,6 @@ runBlocking {
 | `enableMetrics` | `Boolean` | `true` | Track internal metrics |
 | `debug` | `Boolean` | `false` | Enable debug logging to console |
 | `globalMetadata` | `Map<String, Any>` | `emptyMap()` | Metadata added to all logs |
-| `autoTraceId` | `Boolean` | `false` | Auto-generate trace IDs for logs |
 
 ### Example: Full Configuration
 
@@ -152,9 +151,6 @@ val client = LogTideClient(
             "version" to "1.0.0",
             "hostname" to System.getenv("HOSTNAME")
         ),
-        
-        // Auto trace IDs
-        autoTraceId = false
     )
 )
 ```

@@ -33,7 +33,6 @@ fun main() = runBlocking {
                 "version" to "1.0.0",
                 "region" to "eu-west-1"
             ),
-            autoTraceId = false
         )
     )
 

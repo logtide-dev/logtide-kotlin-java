@@ -1,7 +1,6 @@
 package dev.logtide.sdk.models
 
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -19,8 +18,7 @@ data class LogTideClientOptions(
     var circuitBreakerReset: Duration = 30.seconds,
     var enableMetrics: Boolean = true,
     var debug: Boolean = false,
-    var globalMetadata: Map<String, Any> = emptyMap(),
-    var autoTraceId: Boolean = false
+    var globalMetadata: Map<String, Any> = emptyMap()
 ) {
     init {
         require(apiUrl.isNotBlank()) { "apiUrl cannot be blank" }
@@ -57,7 +55,6 @@ class LogTideClientOptionsBuilder {
     var enableMetrics: Boolean = true
     var debug: Boolean = false
     var globalMetadata: Map<String, Any> = emptyMap()
-    var autoTraceId: Boolean = false
     
     fun build(): LogTideClientOptions = LogTideClientOptions(
         apiUrl = apiUrl,
@@ -71,8 +68,7 @@ class LogTideClientOptionsBuilder {
         circuitBreakerReset = circuitBreakerReset,
         enableMetrics = enableMetrics,
         debug = debug,
-        globalMetadata = globalMetadata,
-        autoTraceId = autoTraceId
+        globalMetadata = globalMetadata
     )
 }
 

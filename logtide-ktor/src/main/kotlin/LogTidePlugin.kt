@@ -14,7 +14,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
 import java.util.*
-import kotlin.apply
 
 /**
  * AttributeKey to access the LogTide client instance
@@ -64,7 +63,11 @@ class LogTidePluginConfig {
     internal lateinit var clientOptions: LogTideClientOptions
 
     // Forward all LogTideClientOptions
-    fun logtideClientOptions(apiUrl: String, apiKey: String, block: LogTideClientOptions.() -> Unit) {
+    fun logtideClientOptions(
+        apiUrl: String,
+        apiKey: String,
+        block: LogTideClientOptions.() -> Unit = { this.apiUrl = apiUrl; this.apiKey = apiKey }
+    ) {
         if (!::clientOptions.isInitialized) {
             clientOptions = LogTideClientOptions(apiUrl, apiKey)
         }

@@ -29,7 +29,6 @@ class LogTideClientOptionsTest {
         assertTrue(options.enableMetrics)
         assertFalse(options.debug)
         assertTrue(options.globalMetadata.isEmpty())
-        assertFalse(options.autoTraceId)
     }
 
     @Test
@@ -47,8 +46,7 @@ class LogTideClientOptionsTest {
             circuitBreakerReset = 60.seconds,
             enableMetrics = false,
             debug = true,
-            globalMetadata = metadata,
-            autoTraceId = true
+            globalMetadata = metadata
         )
 
         assertEquals("https://api.logtide.dev", options.apiUrl)
@@ -63,7 +61,6 @@ class LogTideClientOptionsTest {
         assertFalse(options.enableMetrics)
         assertTrue(options.debug)
         assertEquals(metadata, options.globalMetadata)
-        assertTrue(options.autoTraceId)
     }
 
     @Test
@@ -255,7 +252,6 @@ class LogTideClientOptionsTest {
         assertTrue(builder.enableMetrics)
         assertFalse(builder.debug)
         assertTrue(builder.globalMetadata.isEmpty())
-        assertFalse(builder.autoTraceId)
     }
 
     // ==================== Data Class Tests ====================

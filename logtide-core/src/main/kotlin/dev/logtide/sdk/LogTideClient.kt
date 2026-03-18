@@ -199,13 +199,14 @@ class LogTideClient(private val options: LogTideClientOptions) {
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()
+            val metadataTraceId = entry.metadata?.get("traceId")?.toString()
             finalEntry = if (contextTraceId != null) {
                 finalEntry.copy(traceId = contextTraceId)
-            } else if (options.autoTraceId) {
-                finalEntry.copy(traceId = UUID.randomUUID().toString())
+            } else if (metadataTraceId != null) {
+                finalEntry.copy(traceId = metadataTraceId)
             } else {
-                logger.error("Missing trace ID for log, log will be dropped. Consider enabling autoTraceId in client options.")
-                return
+                logger.warn("No trace ID provided for log. Generating one automatically. Consider providing a meaningful one to help debugging.")
+                finalEntry.copy(traceId = UUID.randomUUID().toString())
             }
         }
 
