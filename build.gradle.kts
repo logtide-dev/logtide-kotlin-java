@@ -81,7 +81,7 @@ private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyPassword = System.getenv("PASSWORD")
 
     if (keyBytes != null && keyPassword != null) {
-        println("Signing artifacts with in-memory PGP key (.gpg)")
+        project.logger.info("Signing artifacts with in-memory PGP key (.gpg)")
         project.extensions.configure<SigningExtension>("signing") {
             // For binary .gpg keys
             if (keyId == null) {
@@ -92,7 +92,7 @@ private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
             signAllPublications()
         }
     } else {
-        println("Skipping signing of artifacts: PGP key or password not found in environment variables")
+        project.logger.info("Skipping signing of artifacts: PGP key or password not found in environment variables")
     }
 }
 
