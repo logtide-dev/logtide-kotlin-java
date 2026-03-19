@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-03-19
+
+### Fixed
+
+- `printVersion` Gradle task now correctly reads version from `gradle.properties` instead of the root project (which defaulted to `unspecified`), fixing CI publish pipeline version check
+
 ## [0.5.0] - 2026-03-19
 
 ### Added
@@ -140,6 +146,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kotlin coroutines support for async operations
 - Full Kotlin idioms: data classes, inline functions, DSL builder
 
+[0.8.4]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.8.4
+[0.5.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.5.0
+[0.4.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.4.0
 [0.3.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.3.0
 [0.2.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.2.0
 [0.1.0]: https://github.com/logtide-dev/logtide-sdk-kotlin/releases/tag/v0.1.0
