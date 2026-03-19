@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-03-19
+
+### Added
+
+- **Multi-module Project Structure**: Project split into separate modules
+  - `logtide-core`: Core SDK functionality
+  - `logtide-ktor`: Ktor integration
+  - `logtide-spring`: Spring Boot integration
+  - `logtide-jakarta`: Jakarta Servlet integration
+- **Jakarta Servlet Middleware**: Servlet filter with automatic request/response logging
+- **Spring Boot Middleware**: Spring Boot interceptor with automatic request/response logging
+- **Maven Publishing Automation**: Automated publishing with automatic releases and conditional signing
+- **Gradle Convention Plugin**: Shared configuration plugin across modules
+- **GitHub Templates**: Bug report and feature request issue templates
+
+### Changed
+
+- **Renamed LogWard → LogTide**: All classes and packages have been renamed (**breaking change**)
+- Flush mechanism refactored to use Kotlin coroutines
+- Trace ID validation now accepts non-UUID identifiers
+- Serializers moved to `dev.logtide.sdk.serializers` package
+- Replaced `println` statements with `logger.info` calls in middleware components
+- Build configuration migrated to `projectGroup` and `projectVersion` from `gradle.properties`
+- Ktor plugin now uses `LogTideClientOptions` for configuration
+- README updated with logo, badges, and improved structure
+
+### Removed
+
+- `autoTraceId` option removed from `LogTideClientOptions`
+- `checkVersionTag` task removed from build configuration
+
+### Fixed
+
+- Trace ID propagation in coroutine child scopes
+- `currentTraceId` now uses `currentCoroutineContext` for correct retrieval
+- Kotlin JVM plugin properly applied in `build.gradle.kts`
+
+## [0.4.0] - 2026-01-02
+
+### Added
+
+- **Comprehensive Test Suite**: Significantly expanded test coverage from ~30% to ~75-80%
+  - `LogWardClientOptionsTest`: 23 tests for configuration validation
+  - `ExceptionTest`: 16 tests for exception hierarchy
+  - `LogWardClientHttpTest`: 21 tests for HTTP flush/retry/circuit breaker with MockWebServer
+  - `TraceIdContextTest`: 24 tests for coroutine-safe trace ID propagation
+  - `ModelsSerializationTest`: 22 tests for JSON serialization
+- **Middleware Testing**: Full test coverage for all framework integrations
+  - `LogWardPluginTest`: 19 tests for Ktor middleware
+  - `LogWardInterceptorTest`: 18 tests for Spring Boot interceptor
+  - `LogWardFilterTest`: 25 tests for Jakarta Servlet filter
+
+### Fixed
+
+- Test dependencies now properly configured for runtime (`slf4j-api`, `slf4j-simple`)
+- Framework test dependencies added (`ktor-server-test-host`, `spring-test`, `jakarta.servlet-api`)
+
+### Changed
+
+- Total test count increased from ~24 to ~192
+- All middleware components now have dedicated unit and integration tests
+
 ## [0.3.0] - 2025-12-22
 
 ### Added
