@@ -1,5 +1,6 @@
 package dev.logtide.sdk.models
 
+import dev.logtide.sdk.serializers.InstantSerializer
 import kotlinx.serialization.Serializable
 import java.time.Instant
 

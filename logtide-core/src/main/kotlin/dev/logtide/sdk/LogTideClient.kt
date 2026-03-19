@@ -23,8 +23,6 @@ import okhttp3.sse.EventSources
 import org.slf4j.LoggerFactory
 import java.io.IOException
 import java.util.*
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.math.pow
@@ -36,6 +34,10 @@ import kotlin.math.pow
  * retry logic, circuit breaker, and query capabilities.
  */
 class LogTideClient(private val options: LogTideClientOptions) {
+    companion object {
+        private const val MAX_TRACEID_LENGTH = 250
+    }
+
     private val logger = LoggerFactory.getLogger(this::class.java)
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
@@ -67,11 +69,6 @@ class LogTideClient(private val options: LogTideClientOptions) {
     // Trace ID context (uses shared ThreadLocal from TraceIdContext for coroutine compatibility)
     internal val traceIdContext: ThreadLocal<String?> get() = threadLocalTraceId
 
-    // Periodic flush timer
-    private val flushExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
-        thread(start = false, name = "LogTide-Flush-Timer", isDaemon = true) { r.run() }
-    }
-
     // Coroutine scope for async operations
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -81,12 +78,12 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
     init {
         // Setup periodic flush
-        flushExecutor.scheduleAtFixedRate(
-            { runBlocking { flush() } },
-            options.flushInterval.inWholeMilliseconds,
-            options.flushInterval.inWholeMilliseconds,
-            TimeUnit.MILLISECONDS
-        )
+        scope.launch {
+            while (isActive) {
+                delay(options.flushInterval)
+                flush()
+            }
+        }
 
         // Register shutdown hook for graceful cleanup
         Runtime.getRuntime().addShutdownHook(thread(start = false) {
@@ -158,17 +155,20 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * }
      * ```
      */
-    suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend () -> T): T {
-        val normalizedTraceId = normalizeTraceId(traceId) ?: UUID.randomUUID().toString()
+    suspend fun <T> withTraceIdSuspend(traceId: String, block: suspend CoroutineScope.() -> T): T {
+        val normalizedTraceId =
+            normalizeTraceId(traceId) ?: throw IllegalArgumentException("Invalid trace ID: $traceId")
         return withContext(TraceIdElement(normalizedTraceId)) {
-            block()
+            coroutineScope {
+                block()
+            }
         }
     }
 
     /**
      * Execute suspend function with a new auto-generated trace ID (coroutine-safe)
      */
-    suspend fun <T> withNewTraceIdSuspend(block: suspend () -> T): T {
+    suspend fun <T> withNewTraceIdSuspend(block: suspend CoroutineScope.() -> T): T {
         return withTraceIdSuspend(UUID.randomUUID().toString(), block)
     }
 
@@ -199,10 +199,14 @@ class LogTideClient(private val options: LogTideClientOptions) {
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()
-            if (contextTraceId != null) {
-                finalEntry = finalEntry.copy(traceId = contextTraceId)
-            } else if (options.autoTraceId) {
-                finalEntry = finalEntry.copy(traceId = UUID.randomUUID().toString())
+            val metadataTraceId = entry.metadata?.get("traceId")?.toString()
+            finalEntry = if (contextTraceId != null) {
+                finalEntry.copy(traceId = contextTraceId)
+            } else if (metadataTraceId != null) {
+                finalEntry.copy(traceId = metadataTraceId)
+            } else {
+                logger.warn("No trace ID provided for log. Generating one automatically. Consider providing a meaningful one to help debugging.")
+                finalEntry.copy(traceId = UUID.randomUUID().toString())
             }
         }
 
@@ -224,6 +228,15 @@ class LogTideClient(private val options: LogTideClientOptions) {
         // Auto-flush if batch size reached
         if (buffer.size >= options.batchSize) {
             scope.launch { flush() }
+        }
+    }
+
+    fun metadataOrErrorToMap(metadataOrError: Any?): Map<String, Any>? {
+        return when (metadataOrError) {
+            is Throwable -> mapOf("error" to serializeError(metadataOrError))
+            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
+            null -> null
+            else -> mapOf("data" to metadataOrError)
         }
     }
 
@@ -253,12 +266,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Can accept either metadata map or Throwable
      */
     fun error(service: String, message: String, metadataOrError: Any? = null) {
-        val metadata = when (metadataOrError) {
-            is Throwable -> mapOf("error" to serializeError(metadataOrError))
-            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
-            null -> null
-            else -> mapOf("data" to metadataOrError)
-        }
+        val metadata = metadataOrErrorToMap(metadataOrError)
         log(LogEntry(service, LogLevel.ERROR, message, metadata = metadata))
     }
 
@@ -267,12 +275,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Can accept either metadata map or Throwable
      */
     fun critical(service: String, message: String, metadataOrError: Any? = null) {
-        val metadata = when (metadataOrError) {
-            is Throwable -> mapOf("error" to serializeError(metadataOrError))
-            is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
-            null -> null
-            else -> mapOf("data" to metadataOrError)
-        }
+        val metadata = metadataOrErrorToMap(metadataOrError)
         log(LogEntry(service, LogLevel.CRITICAL, message, metadata = metadata))
     }
 
@@ -387,7 +390,11 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw IOException("HTTP ${response.code}: ${response.message}")
+                if (options.debug) {
+                    logger.error(response.body?.charStream()?.readText())
+                    logger.error(payload.toString())
+                }
+                throw IOException("Failed to send logs: HTTP ${response.code} - ${response.message}")
             }
         }
     }
@@ -537,11 +544,10 @@ class LogTideClient(private val options: LogTideClientOptions) {
         }
 
         flush()
-        flushExecutor.shutdown()
-        withContext(Dispatchers.IO) {
-            flushExecutor.awaitTermination(5, TimeUnit.SECONDS)
+        runCatching {
+            scope.cancel()
         }
-        scope.cancel()
+
         httpClient.dispatcher.executorService.shutdown()
         httpClient.connectionPool.evictAll()
     }
@@ -551,12 +557,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
     internal fun normalizeTraceId(traceId: String?): String? {
         if (traceId == null) return null
 
-        val uuidRegex =
-            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$".toRegex(RegexOption.IGNORE_CASE)
-
-        return if (uuidRegex.matches(traceId)) {
-            traceId
-        } else {
+        return traceId.ifBlank {
             if (options.debug) {
                 logger.error("Invalid trace ID '$traceId', generating new UUID")
             }
@@ -564,12 +565,41 @@ class LogTideClient(private val options: LogTideClientOptions) {
         }
     }
 
+    /**
+     * @see <a href="https://logtide.dev/docs/error-handling/">StructuredException Interface</a>
+     */
     private fun serializeError(error: Throwable): Map<String, Any?> {
-        return mapOf(
-            "name" to error::class.simpleName,
-            "message" to error.message,
-            "stack" to error.stackTraceToString()
-        )
+        fun serializeStacktrace(stacktrace: String): List<Map<String, Any?>> {
+            return stacktrace.lines().map { line ->
+                val regex = """^\s*at\s+(\S+)\s+\(([^:]+):(\d+)\)$""".toRegex()
+                val match = regex.find(line)
+                if (match != null) {
+                    mapOf(
+                        "function" to match.groupValues[1],
+                        "file" to match.groupValues[2],
+                        "line" to match.groupValues[3].toIntOrNull()
+                    )
+                } else {
+                    mapOf("raw" to line.trim())
+                }
+            }
+        }
+
+        val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+
+        fun serializeRecursive(current: Throwable): Map<String, Any?> {
+            visited.add(current)
+
+            return mapOf(
+                "type" to current::class.simpleName,
+                "message" to current.message,
+                "stacktrace" to serializeStacktrace(current.stackTraceToString()),
+                "language" to "kotlin",
+                "cause" to current.cause?.takeIf { visited.add(it) }?.let { serializeRecursive(it) },
+            )
+        }
+
+        return serializeRecursive(error)
     }
 
     private fun updateLatency(latency: Double) {

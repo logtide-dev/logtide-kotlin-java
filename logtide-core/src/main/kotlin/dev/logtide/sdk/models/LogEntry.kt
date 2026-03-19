@@ -1,6 +1,7 @@
 package dev.logtide.sdk.models
 
 import dev.logtide.sdk.enums.LogLevel
+import dev.logtide.sdk.serializers.AnyValueSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant

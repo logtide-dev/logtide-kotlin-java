@@ -55,20 +55,26 @@ private val TraceIdAttributeKey = AttributeKey<String>("LogTideTraceId")
  * ```
  */
 class LogTidePluginConfig {
-    var apiUrl: String = ""
-    var apiKey: String = ""
     var serviceName: String = "ktor-app"
     var logErrors: Boolean = true
     var skipHealthCheck: Boolean = true
     var skipPaths: Set<String> = emptySet()
 
+    internal lateinit var clientOptions: LogTideClientOptions
+
     // Forward all LogTideClientOptions
-    var batchSize: Int = 100
-    var flushInterval: kotlin.time.Duration = kotlin.time.Duration.parse("5s")
-    var maxBufferSize: Int = 10000
-    var enableMetrics: Boolean = true
-    var debug: Boolean = false
-    var globalMetadata: Map<String, Any> = emptyMap()
+    fun logtideClientOptions(
+        apiUrl: String,
+        apiKey: String,
+        block: LogTideClientOptions.() -> Unit = { this.apiUrl = apiUrl; this.apiKey = apiKey }
+    ) {
+        if (!::clientOptions.isInitialized) {
+            clientOptions = LogTideClientOptions(apiUrl, apiKey)
+        }
+        clientOptions = clientOptions.apply {
+            block()
+        }
+    }
 
     /**
      *   Whether to log incoming requests' metadata
@@ -135,16 +141,10 @@ class LogTidePluginConfig {
     // Whether to use the default interceptor to propagate trace IDs in call context
     var useDefaultInterceptor: Boolean = true
 
-    internal fun toClientOptions() = LogTideClientOptions(
-        apiUrl = apiUrl,
-        apiKey = apiKey,
-        batchSize = batchSize,
-        flushInterval = flushInterval,
-        maxBufferSize = maxBufferSize,
-        enableMetrics = enableMetrics,
-        debug = debug,
-        globalMetadata = globalMetadata
-    )
+    internal fun toClientOptions(): LogTideClientOptions {
+        if (!::clientOptions.isInitialized) throw IllegalStateException("Client options have not been provided. Call logtideClientOptions in the plugin configuration block to set them up.")
+        return this.clientOptions.copy()
+    }
 }
 
 val LogTidePlugin = createApplicationPlugin(
@@ -156,9 +156,9 @@ val LogTidePlugin = createApplicationPlugin(
     // Log plugin installation
     application.log.info("LogTide Plugin Initialized")
     application.log.info("  Service Name: ${config.serviceName}")
-    application.log.info("  API URL: ${config.apiUrl}")
-    application.log.info("  Batch Size: ${config.batchSize}")
-    application.log.info("  Flush Interval: ${config.flushInterval}")
+    application.log.info("  API URL: ${config.clientOptions.apiUrl}")
+    application.log.info("  Batch Size: ${config.clientOptions.batchSize}")
+    application.log.info("  Flush Interval: ${config.clientOptions.flushInterval}")
     application.log.info("  Log Requests: ${config.logRequests}")
     application.log.info("  Log Responses: ${config.logResponses}")
     application.log.info("  Log Errors: ${config.logErrors}")

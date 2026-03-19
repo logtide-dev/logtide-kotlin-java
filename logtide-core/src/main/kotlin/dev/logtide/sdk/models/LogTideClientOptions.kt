@@ -1,26 +1,24 @@
 package dev.logtide.sdk.models
 
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * Configuration options for LogTide client
  */
 data class LogTideClientOptions(
-    val apiUrl: String,
-    val apiKey: String,
-    val batchSize: Int = 100,
-    val flushInterval: Duration = 5.seconds,
-    val maxBufferSize: Int = 10000,
-    val maxRetries: Int = 3,
-    val retryDelay: Duration = 1.seconds,
-    val circuitBreakerThreshold: Int = 5,
-    val circuitBreakerReset: Duration = 30.seconds,
-    val enableMetrics: Boolean = true,
-    val debug: Boolean = false,
-    val globalMetadata: Map<String, Any> = emptyMap(),
-    val autoTraceId: Boolean = false
+    var apiUrl: String,
+    var apiKey: String,
+    var batchSize: Int = 100,
+    var flushInterval: Duration = 5.seconds,
+    var maxBufferSize: Int = 10000,
+    var maxRetries: Int = 3,
+    var retryDelay: Duration = 1.seconds,
+    var circuitBreakerThreshold: Int = 5,
+    var circuitBreakerReset: Duration = 30.seconds,
+    var enableMetrics: Boolean = true,
+    var debug: Boolean = false,
+    var globalMetadata: Map<String, Any> = emptyMap()
 ) {
     init {
         require(apiUrl.isNotBlank()) { "apiUrl cannot be blank" }
@@ -57,7 +55,6 @@ class LogTideClientOptionsBuilder {
     var enableMetrics: Boolean = true
     var debug: Boolean = false
     var globalMetadata: Map<String, Any> = emptyMap()
-    var autoTraceId: Boolean = false
     
     fun build(): LogTideClientOptions = LogTideClientOptions(
         apiUrl = apiUrl,
@@ -71,8 +68,7 @@ class LogTideClientOptionsBuilder {
         circuitBreakerReset = circuitBreakerReset,
         enableMetrics = enableMetrics,
         debug = debug,
-        globalMetadata = globalMetadata,
-        autoTraceId = autoTraceId
+        globalMetadata = globalMetadata
     )
 }
 

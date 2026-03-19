@@ -1,10 +1,11 @@
-@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.DelicateCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 
 package dev.logtide.sdk
 
 import kotlinx.coroutines.CopyableThreadContextElement
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -34,7 +35,7 @@ internal val threadLocalTraceId = ThreadLocal<String?>()
  * ```
  */
 @OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
-class TraceIdElement(
+data class TraceIdElement(
     val traceId: String
 ) : CopyableThreadContextElement<String?> {
 
@@ -65,7 +66,7 @@ class TraceIdElement(
      * Returns a copy of this element for the child coroutine.
      */
     override fun copyForChild(): CopyableThreadContextElement<String?> {
-        return TraceIdElement(traceId)
+        return copy()
     }
 
     /**
@@ -92,6 +93,6 @@ class TraceIdElement(
  * ```
  */
 suspend fun currentTraceId(): String? {
-    return kotlin.coroutines.coroutineContext[TraceIdElement]?.traceId
+    return currentCoroutineContext()[TraceIdElement]?.traceId
         ?: threadLocalTraceId.get()
 }

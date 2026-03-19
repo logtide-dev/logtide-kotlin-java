@@ -114,7 +114,6 @@ runBlocking {
 | `enableMetrics` | `Boolean` | `true` | Track internal metrics |
 | `debug` | `Boolean` | `false` | Enable debug logging to console |
 | `globalMetadata` | `Map<String, Any>` | `emptyMap()` | Metadata added to all logs |
-| `autoTraceId` | `Boolean` | `false` | Auto-generate trace IDs for logs |
 
 ### Example: Full Configuration
 
@@ -152,9 +151,6 @@ val client = LogTideClient(
             "version" to "1.0.0",
             "hostname" to System.getenv("HOSTNAME")
         ),
-        
-        // Auto trace IDs
-        autoTraceId = false
     )
 )
 ```
@@ -346,9 +342,10 @@ import dev.logtide.sdk.middleware.LogTidePlugin
 import io.ktor.server.application.*
 
 fun Application.module() {
+    val apiUrl = "http://localhost:8080"
+    val apiKey = "lp_your_api_key_here"
+    
     install(LogTidePlugin) {
-        apiUrl = "http://localhost:8080"
-        apiKey = "lp_your_api_key_here"
         serviceName = "ktor-app"
 
         // Optional configuration
@@ -357,10 +354,12 @@ fun Application.module() {
         skipPaths = setOf("/metrics", "/internal")
 
         // Client options
-        batchSize = 100
-        flushInterval = kotlin.time.Duration.parse("5s")
-        enableMetrics = true
-        globalMetadata = mapOf("env" to "production")
+        logtideClientOptions(apiUrl, apiKey) {
+            batchSize = 100
+            flushInterval = kotlin.time.Duration.parse("5s")
+            enableMetrics = true
+            globalMetadata = mapOf("env" to "production")
+        }
         
         // Enable request/response logging
         logRequests = true // Log incoming requests, e.g., method, path, headers
