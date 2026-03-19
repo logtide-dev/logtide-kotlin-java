@@ -98,6 +98,6 @@ private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
 
 tasks.register("printVersion") {
     doLast {
-        println(project.version.toString())
+        println(projectVersion)
     }
 }
