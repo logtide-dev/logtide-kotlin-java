@@ -3,7 +3,6 @@ import com.vanniktech.maven.publish.SonatypeHost
 import helpers.configureMavenCentralMetadata
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 val kotlinJvmTarget: String by project
@@ -72,7 +71,6 @@ subprojects {
     }
 }
 
-@OptIn(ExperimentalEncodingApi::class)
 fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
     val keyId = System.getenv("KEY_ID")
     val signingKey = System.getenv("SECRING")
