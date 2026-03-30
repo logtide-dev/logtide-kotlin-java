@@ -57,12 +57,10 @@ jobs:
           chmod +x ./gradlew
           bash ./gradlew publishAndReleaseToMavenCentral --no-daemon --stacktrace
 
-      - name: Upload JAR to GitHub release
-        uses: actions/upload-release-asset@v1
+      - name: Upload JARs to GitHub release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: build/libs/*.jar
-          asset_name: project-${GITHUB_REF_NAME#v}.jar
-          asset_content_type: application/java-archive
+        run: |
+          for jar in */build/libs/*.jar; do
+            gh release upload "${{ github.event.release.tag_name }}" "$jar" --clobber
+          done
