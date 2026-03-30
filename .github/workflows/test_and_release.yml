@@ -48,9 +48,9 @@ jobs:
 
       - name: Publish to Sonatype OSSRH and Maven Central
         env:
-          SECRING: ${{ secrets.SECRING }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          KEY_ID: ${{ secrets.KEY_ID }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          SIGNING_KEY_PASSPHRASE: ${{ secrets.SIGNING_KEY_PASSPHRASE }}
           OSSRH_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
         run: |
