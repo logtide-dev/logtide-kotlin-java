@@ -90,11 +90,12 @@ fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
 private fun preprocessPrivateGpgKey(key: String): String {
     val prefix = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
     val suffix = "-----END PGP PRIVATE KEY BLOCK-----"
-    val delimiter = "\r\n"
-    return prefix + delimiter + key
+    val body = key
         .replace(prefix, "")
         .replace(suffix, "")
-        .replace(" ", "\r\n") + delimiter + suffix
+        .replace("\\n", "\n")
+        .trim()
+    return "$prefix\n\n$body\n$suffix"
 }
 
 tasks.register("printVersion") {
