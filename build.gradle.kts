@@ -3,7 +3,6 @@ import com.vanniktech.maven.publish.SonatypeHost
 import helpers.configureMavenCentralMetadata
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 val kotlinJvmTarget: String by project
@@ -72,28 +71,30 @@ subprojects {
     }
 }
 
-@OptIn(ExperimentalEncodingApi::class)
-private fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
-    val keyId = System.getenv("KEY_ID")
-    val keyBytes = runCatching {
-        Base64.decode(System.getenv("SECRING").toByteArray()).decodeToString()
-    }.getOrNull()
-    val keyPassword = System.getenv("PASSWORD")
+fun MavenPublishBaseExtension.signIfKeyPresent(project: Project) {
+    val keyId = System.getenv("SIGNING_KEY_ID")
+    val signingKey = System.getenv("SIGNING_KEY")
+    val signingKeyPassphrase = System.getenv("SIGNING_KEY_PASSPHRASE")
 
-    if (keyBytes != null && keyPassword != null) {
-        project.logger.info("Signing artifacts with in-memory PGP key (.gpg)")
+    if (!signingKey.isNullOrBlank()) {
+        project.logger.info("Signing artifacts with in-memory PGP key for ${project.path}")
         project.extensions.configure<SigningExtension>("signing") {
-            // For binary .gpg keys
-            if (keyId == null) {
-                useInMemoryPgpKeys(keyBytes, keyPassword)
-            } else {
-                useInMemoryPgpKeys(keyId, keyBytes, keyPassword)
-            }
+            useInMemoryPgpKeys(keyId, preprocessPrivateGpgKey(signingKey), signingKeyPassphrase)
             signAllPublications()
         }
     } else {
-        project.logger.info("Skipping signing of artifacts: PGP key or password not found in environment variables")
+        project.logger.warn("Skipping signing of artifacts: PGP key or password not found in environment variables for ${project.path}")
     }
+}
+
+private fun preprocessPrivateGpgKey(key: String): String {
+    val prefix = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+    val suffix = "-----END PGP PRIVATE KEY BLOCK-----"
+    val delimiter = "\r\n"
+    return prefix + delimiter + key
+        .replace(prefix, "")
+        .replace(suffix, "")
+        .replace(" ", "\r\n") + delimiter + suffix
 }
 
 tasks.register("printVersion") {
