@@ -426,7 +426,9 @@ class LogTideClient(private val options: LogTideClientOptions) {
                 }
 
                 if (attempt < options.maxRetries) {
-                    val delayMs = options.retryDelay.inWholeMilliseconds * (2.0.pow(attempt.toDouble())).toLong()
+                    // A server-provided Retry-After overrides the computed backoff
+                    val delayMs = (e as? HttpStatusException)?.retryAfterMs
+                        ?: (options.retryDelay.inWholeMilliseconds * (2.0.pow(attempt.toDouble())).toLong())
                     if (options.debug) {
                         logger.error("Attempt ${attempt + 1} failed: ${e.message}. Retrying in ${delayMs}ms...")
                     }
@@ -464,7 +466,13 @@ class LogTideClient(private val options: LogTideClientOptions) {
                     logger.error(response.body?.charStream()?.readText())
                     logger.error(payload.toString())
                 }
-                throw HttpStatusException(response.code, "Failed to send logs: HTTP ${response.code} - ${response.message}")
+                val retryAfterMs = response.header("Retry-After")
+                    ?.toDoubleOrNull()?.takeIf { it >= 0 }?.let { (it * 1000).toLong() }
+                throw HttpStatusException(
+                    response.code,
+                    "Failed to send logs: HTTP ${response.code} - ${response.message}",
+                    retryAfterMs,
+                )
             }
         }
     }

@@ -8,6 +8,8 @@ package dev.logtide.sdk.exceptions
 class HttpStatusException(
     val statusCode: Int,
     message: String,
+    /** Parsed Retry-After header in milliseconds, when present. */
+    val retryAfterMs: Long? = null,
 ) : LogTideException(message) {
     val isRetryable: Boolean
         get() = statusCode == 408 || statusCode == 429 || statusCode >= 500

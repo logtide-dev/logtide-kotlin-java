@@ -5,4 +5,4 @@ package dev.logtide.sdk
  * Keep [SDK_VERSION] in sync with `projectVersion` in gradle.properties.
  */
 internal const val SDK_NAME = "logtide-kotlin"
-internal const val SDK_VERSION = "0.9.4"
+internal const val SDK_VERSION = "0.9.5"

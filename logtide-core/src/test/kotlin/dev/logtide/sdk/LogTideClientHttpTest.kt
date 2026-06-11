@@ -273,6 +273,25 @@ class LogTideClientHttpTest {
     }
 
     @Test
+    fun `retry-after overrides the computed backoff`() = runBlocking {
+        // retryDelay of 3s would dominate the test runtime; Retry-After: 0 must win.
+        client = createClient(maxRetries = 2, retryDelay = 3.seconds)
+
+        mockServer.enqueue(
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "0")
+        )
+        mockServer.enqueue(MockResponse().setResponseCode(200))
+
+        client.info("test", "Message")
+        val start = System.currentTimeMillis()
+        client.flush()
+        val elapsed = System.currentTimeMillis() - start
+
+        assertEquals(2, mockServer.requestCount)
+        assertTrue(elapsed < 1500, "elapsed ${elapsed}ms: Retry-After: 0 should override the 3s backoff")
+    }
+
+    @Test
     fun `flush should retry on 429`() = runBlocking {
         client = createClient(maxRetries = 2)
 
