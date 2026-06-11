@@ -5,9 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.0] - 2026-06-11
+## [0.9.1] - 2026-06-11
 
 ### Added
+
+- **New module `logtide-logback`**: a Logback appender (`dev.logtide.sdk.logback.LogTideAppender`) so existing SLF4J/Logback logging flows to LogTide via XML config or an injected shared client. Maps levels, turns MDC and SLF4J 2.x key/value pairs into metadata, promotes the `trace_id` MDC key to the top-level trace id, and serializes throwables to the canonical structured exception format
 
 - W3C Trace Context support: `TraceContext` object with `parseTraceparent`, `formatTraceparent`, `generateTraceId`, `generateSpanId`, `resolveTraceId`
 - Spring, Ktor and Jakarta integrations now resolve the inbound trace context per the W3C spec: `traceparent` header first, legacy `X-Trace-ID` as deprecated fallback, otherwise a new W3C trace ID is generated

@@ -2,6 +2,7 @@
 spring-boot = "3.2.0"
 ktor = "2.3.7"
 jakarta = "6.0.0"
+logback = "1.4.14"
 
 [plugins]
 
@@ -9,6 +10,7 @@ jakarta = "6.0.0"
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 jakarta-servlet-api = { module = "jakarta.servlet:jakarta.servlet-api", version.ref = "jakarta" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 # Test
 ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
