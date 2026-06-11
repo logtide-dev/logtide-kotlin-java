@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-06-11
+
+### Added
+
+- **New module `logtide-otel`**: OpenTelemetry tracing preset (`LogTideOpenTelemetry.create`) — one call configures the official OTel SDK to export spans to LogTide (`/v1/otlp/traces`, `X-API-Key`) with `service.name`/`deployment.environment`/`service.version` resource identity and a parent-based `tracesSampleRate` sampler
+- **Active-span log correlation**: entries captured inside an active OTel span automatically carry its `trace_id`/`span_id` (`ActiveTraceContext` pluggable lookup in core; resolution order: explicit → active span → scope → client context)
+
 ## [0.9.6] - 2026-06-11
 
 ### Added

@@ -83,3 +83,22 @@ object TraceContext {
         return generateTraceId()
     }
 }
+
+
+/**
+ * Pluggable lookup for the active span's trace context, used in the
+ * resolution order (explicit -> active span -> scope -> client context).
+ * Registered by the `logtide-otel` module when OpenTelemetry is configured.
+ */
+object ActiveTraceContext {
+
+    @Volatile
+    var provider: (() -> Pair<String, String>?)? = null
+
+    /** The active span's (traceId, spanId), or null. Never throws. */
+    fun current(): Pair<String, String>? = try {
+        provider?.invoke()
+    } catch (_: Exception) {
+        null
+    }
+}

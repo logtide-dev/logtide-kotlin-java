@@ -200,6 +200,17 @@ class LogTideClient(private val options: LogTideClientOptions) {
     fun log(entry: LogEntry) {
         var finalEntry = entry
 
+        // Active-span trace context (resolution order per spec 005 §4:
+        // explicit -> active span -> scope -> client context/generation).
+        if (finalEntry.traceId == null) {
+            ActiveTraceContext.current()?.let { (activeTrace, activeSpan) ->
+                finalEntry = finalEntry.copy(
+                    traceId = activeTrace,
+                    spanId = finalEntry.spanId ?: activeSpan,
+                )
+            }
+        }
+
         // Merge the current scope (tags, user, breadcrumbs, session, trace
         // context). Runs before trace-id injection so the scope's trace
         // context wins over auto-generation (spec 005 §4).
