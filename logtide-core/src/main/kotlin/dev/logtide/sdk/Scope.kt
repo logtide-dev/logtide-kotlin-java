@@ -90,6 +90,9 @@ class Scope(private val maxBreadcrumbs: Int = DEFAULT_MAX_BREADCRUMBS) {
 
     fun clearBreadcrumbs(): Unit = synchronized(lock) { breadcrumbs.clear() }
 
+    /** The scope's (traceId, spanId) pair; either side may be null. */
+    fun traceContext(): Pair<String?, String?> = synchronized(lock) { traceId to spanId }
+
     /** Deep copy, safe for independent mutation. */
     fun clone(): Scope = synchronized(lock) {
         val copy = Scope(maxBreadcrumbs)
