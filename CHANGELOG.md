@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-06-11
+
+### Added
+
+- DSN support: `LogTideClientOptions.fromDsn("https://lp_key@host[/path]") { ... }` plus `Dsn.parse` and `DsnParseException`. A malformed DSN throws at init time
+- `LogTideClientOptions.service`: configure the service once and call log methods with just the message — `client.info("user logged in")`, `client.error("boom", exc)`. The legacy `(service, message)` overloads keep working
+- Every entry now carries `metadata.sdk = {"name": "logtide-kotlin", "version": ...}` (caller-provided `sdk` key wins)
+
 ## [0.9.1] - 2026-06-11
 
 ### Added

@@ -206,6 +206,14 @@ class LogTideClient(private val options: LogTideClientOptions) {
             finalEntry = entry.copy(metadata = mergedMetadata)
         }
 
+        // Stamp SDK identity (spec 003 §3); caller-provided value wins
+        if (finalEntry.metadata?.containsKey("sdk") != true) {
+            finalEntry = finalEntry.copy(
+                metadata = (finalEntry.metadata ?: emptyMap()) +
+                    mapOf("sdk" to mapOf("name" to SDK_NAME, "version" to SDK_VERSION))
+            )
+        }
+
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()
@@ -259,6 +267,11 @@ class LogTideClient(private val options: LogTideClientOptions) {
         log(LogEntry(service, LogLevel.DEBUG, message, metadata = metadata))
     }
 
+    /** Log a debug message using the service configured in the options. */
+    fun debug(message: String, metadata: Map<String, Any>? = null) {
+        log(LogEntry(requireConfiguredService(), LogLevel.DEBUG, message, metadata = metadata))
+    }
+
     /**
      * Log info message
      */
@@ -266,11 +279,21 @@ class LogTideClient(private val options: LogTideClientOptions) {
         log(LogEntry(service, LogLevel.INFO, message, metadata = metadata))
     }
 
+    /** Log an info message using the service configured in the options. */
+    fun info(message: String, metadata: Map<String, Any>? = null) {
+        log(LogEntry(requireConfiguredService(), LogLevel.INFO, message, metadata = metadata))
+    }
+
     /**
      * Log warning message
      */
     fun warn(service: String, message: String, metadata: Map<String, Any>? = null) {
         log(LogEntry(service, LogLevel.WARN, message, metadata = metadata))
+    }
+
+    /** Log a warn message using the service configured in the options. */
+    fun warn(message: String, metadata: Map<String, Any>? = null) {
+        log(LogEntry(requireConfiguredService(), LogLevel.WARN, message, metadata = metadata))
     }
 
     /**
@@ -282,6 +305,12 @@ class LogTideClient(private val options: LogTideClientOptions) {
         log(LogEntry(service, LogLevel.ERROR, message, metadata = metadata))
     }
 
+    /** Log an error message using the service configured in the options. */
+    fun error(message: String, metadataOrError: Any? = null) {
+        val metadata = metadataOrErrorToMap(metadataOrError)
+        log(LogEntry(requireConfiguredService(), LogLevel.ERROR, message, metadata = metadata))
+    }
+
     /**
      * Log critical message
      * Can accept either metadata map or Throwable
@@ -290,6 +319,18 @@ class LogTideClient(private val options: LogTideClientOptions) {
         val metadata = metadataOrErrorToMap(metadataOrError)
         log(LogEntry(service, LogLevel.CRITICAL, message, metadata = metadata))
     }
+
+    /** Log a critical message using the service configured in the options. */
+    fun critical(message: String, metadataOrError: Any? = null) {
+        val metadata = metadataOrErrorToMap(metadataOrError)
+        log(LogEntry(requireConfiguredService(), LogLevel.CRITICAL, message, metadata = metadata))
+    }
+
+    private fun requireConfiguredService(): String =
+        options.service ?: throw IllegalStateException(
+            "No service configured: set LogTideClientOptions.service to call " +
+                "log methods with just a message, or pass (service, message)"
+        )
 
     // ==================== Flush & Send ====================
 

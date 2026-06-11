@@ -18,8 +18,27 @@ data class LogTideClientOptions(
     var circuitBreakerReset: Duration = 30.seconds,
     var enableMetrics: Boolean = true,
     var debug: Boolean = false,
-    var globalMetadata: Map<String, Any> = emptyMap()
+    var globalMetadata: Map<String, Any> = emptyMap(),
+    var service: String? = null
 ) {
+    companion object {
+        /**
+         * Build options from a DSN (spec 002 §3):
+         * `https://lp_key@host[/base-path]`.
+         */
+        fun fromDsn(
+            dsn: String,
+            block: LogTideClientOptionsBuilder.() -> Unit = {}
+        ): LogTideClientOptions {
+            val parts = dev.logtide.sdk.Dsn.parse(dsn)
+            return LogTideClientOptionsBuilder().apply {
+                apiUrl = parts.apiUrl
+                apiKey = parts.apiKey
+                block()
+            }.build()
+        }
+    }
+
     init {
         require(apiUrl.isNotBlank()) { "apiUrl cannot be blank" }
         require(apiKey.isNotBlank()) { "apiKey cannot be blank" }
@@ -55,7 +74,8 @@ class LogTideClientOptionsBuilder {
     var enableMetrics: Boolean = true
     var debug: Boolean = false
     var globalMetadata: Map<String, Any> = emptyMap()
-    
+    var service: String? = null
+
     fun build(): LogTideClientOptions = LogTideClientOptions(
         apiUrl = apiUrl,
         apiKey = apiKey,
@@ -68,7 +88,8 @@ class LogTideClientOptionsBuilder {
         circuitBreakerReset = circuitBreakerReset,
         enableMetrics = enableMetrics,
         debug = debug,
-        globalMetadata = globalMetadata
+        globalMetadata = globalMetadata,
+        service = service
     )
 }
 
