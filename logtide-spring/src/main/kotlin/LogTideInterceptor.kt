@@ -3,6 +3,7 @@
 package dev.logtide.sdk.spring
 
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.TraceContext
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
@@ -65,11 +66,13 @@ class LogTideInterceptor(
             return true
         }
 
-        // Extract or generate trace ID
-        val traceId = request.getHeader(TRACE_ID_HEADER)
-        if (traceId != null) {
-            client.setTraceId(traceId)
-        }
+        // Resolve the inbound trace context (spec 005 §2):
+        // W3C traceparent -> legacy X-Trace-ID -> generated W3C trace id.
+        val traceId = TraceContext.resolveTraceId(
+            request.getHeader(TraceContext.TRACEPARENT_HEADER),
+            request.getHeader(TRACE_ID_HEADER),
+        )
+        client.setTraceId(traceId)
 
         // Store start time
         request.setAttribute(START_TIME_ATTR, System.currentTimeMillis())

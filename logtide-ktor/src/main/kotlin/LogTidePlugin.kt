@@ -4,6 +4,7 @@
 package dev.logtide.sdk.ktor
 
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.TraceContext
 import dev.logtide.sdk.TraceIdElement
 import dev.logtide.sdk.models.LogTideClientOptions
 import io.ktor.http.content.*
@@ -13,7 +14,6 @@ import io.ktor.util.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.withContext
-import java.util.*
 
 /**
  * AttributeKey to access the LogTide client instance
@@ -129,13 +129,15 @@ class LogTidePluginConfig {
 
     /**
      *  Extracts a trace ID from the incoming call.
-     *  By default, extracts the trace ID from the "X-Trace-ID" header if present.
+     *  By default resolves the W3C "traceparent" header first, then the
+     *  legacy "X-Trace-ID" header (spec 005 §2).
      *
      *  @param call The incoming application call from which to extract the trace ID
      *  @return The extracted trace ID, or null to generate a new trace ID
      */
     var extractTraceIdFromCall: (ApplicationCall) -> String? = { call ->
-        call.request.headers["X-Trace-ID"]
+        TraceContext.parseTraceparent(call.request.headers[TraceContext.TRACEPARENT_HEADER])?.traceId
+            ?: call.request.headers[TraceContext.LEGACY_TRACE_HEADER]
     }
 
     // Whether to use the default interceptor to propagate trace IDs in call context
@@ -185,7 +187,7 @@ val LogTidePlugin = createApplicationPlugin(
 
         // Extract or generate trace ID (always have one for coroutine propagation)
         val traceId = config.extractTraceIdFromCall(call)
-            ?: UUID.randomUUID().toString()
+            ?: TraceContext.generateTraceId()
 
         // Store trace ID for coroutine propagation
         call.attributes.put(TraceIdAttributeKey, traceId)

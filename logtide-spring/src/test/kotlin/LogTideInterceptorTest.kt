@@ -386,4 +386,32 @@ class LogTideInterceptorTest {
         interceptor.afterCompletion(mockRequest, mockResponse, Any(), null)
         assertNull(client.getTraceId())
     }
+
+    @Test
+    fun `preHandle should prefer w3c traceparent over legacy header`() {
+        interceptor = LogTideInterceptor(client, "test-service", logRequests = false)
+
+        every { mockRequest.requestURI } returns "/api/users"
+        every { mockRequest.getHeader("traceparent") } returns
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        every { mockRequest.getHeader("X-Trace-ID") } returns "legacy-123"
+
+        interceptor.preHandle(mockRequest, mockResponse, Any())
+
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", client.getTraceId())
+    }
+
+    @Test
+    fun `preHandle should generate w3c trace id when no header present`() {
+        interceptor = LogTideInterceptor(client, "test-service", logRequests = false)
+
+        every { mockRequest.requestURI } returns "/api/users"
+        every { mockRequest.getHeader(any()) } returns null
+
+        interceptor.preHandle(mockRequest, mockResponse, Any())
+
+        val traceId = client.getTraceId()
+        assertNotNull(traceId)
+        assertTrue(traceId.matches(Regex("[0-9a-f]{32}")), "not w3c: $traceId")
+    }
 }

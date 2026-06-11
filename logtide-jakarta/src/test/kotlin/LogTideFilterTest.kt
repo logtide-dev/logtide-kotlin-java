@@ -19,6 +19,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -526,5 +527,41 @@ class LogTideFilterTest {
         filter.doFilter(mockRequest, mockResponse, mockChain)
         assertEquals(traceId2, secondRequestTraceId)
         assertNull(client.getTraceId())
+    }
+
+    @Test
+    fun `doFilter should prefer w3c traceparent over legacy header`() {
+        filter = LogTideFilter(client, "test-service", logRequests = false, logResponses = false)
+
+        every { mockRequest.requestURI } returns "/api/users"
+        every { mockRequest.getHeader("traceparent") } returns
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+        every { mockRequest.getHeader("X-Trace-ID") } returns "legacy-123"
+
+        // The filter clears the trace context after the chain: capture it
+        // while the request is being handled.
+        var seenTraceId: String? = null
+        every { mockChain.doFilter(any(), any()) } answers { seenTraceId = client.getTraceId() }
+
+        filter.doFilter(mockRequest, mockResponse, mockChain)
+
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", seenTraceId)
+    }
+
+    @Test
+    fun `doFilter should generate w3c trace id when no header present`() {
+        filter = LogTideFilter(client, "test-service", logRequests = false, logResponses = false)
+
+        every { mockRequest.requestURI } returns "/api/users"
+        every { mockRequest.getHeader(any()) } returns null
+
+        var seenTraceId: String? = null
+        every { mockChain.doFilter(any(), any()) } answers { seenTraceId = client.getTraceId() }
+
+        filter.doFilter(mockRequest, mockResponse, mockChain)
+
+        val traceId = seenTraceId
+        assertNotNull(traceId)
+        assertTrue(traceId.matches(Regex("[0-9a-f]{32}")), "not w3c: $traceId")
     }
 }

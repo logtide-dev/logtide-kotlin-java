@@ -7,6 +7,7 @@ import dev.logtide.sdk.enums.CircuitState
 import dev.logtide.sdk.enums.LogLevel
 import dev.logtide.sdk.exceptions.BufferFullException
 import dev.logtide.sdk.exceptions.CircuitBreakerOpenException
+import dev.logtide.sdk.exceptions.HttpStatusException
 import dev.logtide.sdk.models.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.encodeToString
@@ -37,6 +38,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
     companion object {
         private const val MAX_TRACEID_LENGTH = 250
         private const val INGEST_PATH = "/api/v1/ingest"
+        private const val MAX_STACK_FRAMES = 100
     }
 
     // apiUrl is the base URL of the instance; the ingest path is appended
@@ -137,7 +139,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Execute function with a new auto-generated trace ID
      */
     fun <T> withNewTraceId(block: () -> T): T {
-        return withTraceId(UUID.randomUUID().toString(), block)
+        return withTraceId(TraceContext.generateTraceId(), block)
     }
 
     // ==================== Coroutine-safe Trace ID Methods ====================
@@ -177,7 +179,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * Execute suspend function with a new auto-generated trace ID (coroutine-safe)
      */
     suspend fun <T> withNewTraceIdSuspend(block: suspend CoroutineScope.() -> T): T {
-        return withTraceIdSuspend(UUID.randomUUID().toString(), block)
+        return withTraceIdSuspend(TraceContext.generateTraceId(), block)
     }
 
     /**
@@ -213,8 +215,10 @@ class LogTideClient(private val options: LogTideClientOptions) {
             } else if (metadataTraceId != null) {
                 finalEntry.copy(traceId = metadataTraceId)
             } else {
-                logger.warn("No trace ID provided for log. Generating one automatically. Consider providing a meaningful one to help debugging.")
-                finalEntry.copy(traceId = UUID.randomUUID().toString())
+                if (options.debug) {
+                    logger.debug("No trace ID provided for log, generating one automatically")
+                }
+                finalEntry.copy(traceId = TraceContext.generateTraceId())
             }
         }
 
@@ -241,7 +245,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
     fun metadataOrErrorToMap(metadataOrError: Any?): Map<String, Any>? {
         return when (metadataOrError) {
-            is Throwable -> mapOf("error" to serializeError(metadataOrError))
+            is Throwable -> mapOf("exception" to serializeError(metadataOrError))
             is Map<*, *> -> @Suppress("UNCHECKED_CAST") (metadataOrError as Map<String, Any>)
             null -> null
             else -> mapOf("data" to metadataOrError)
@@ -363,6 +367,15 @@ class LogTideClient(private val options: LogTideClientOptions) {
                     }
                 }
 
+                // Permanent client errors (4xx except 408/429) will not become
+                // valid by retrying: drop the batch after the first attempt.
+                if (e is HttpStatusException && !e.isRetryable) {
+                    if (options.debug) {
+                        logger.error("Non-retryable error (HTTP ${e.statusCode}), dropping batch")
+                    }
+                    break
+                }
+
                 if (attempt < options.maxRetries) {
                     val delayMs = options.retryDelay.inWholeMilliseconds * (2.0.pow(attempt.toDouble())).toLong()
                     if (options.debug) {
@@ -402,7 +415,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
                     logger.error(response.body?.charStream()?.readText())
                     logger.error(payload.toString())
                 }
-                throw IOException("Failed to send logs: HTTP ${response.code} - ${response.message}")
+                throw HttpStatusException(response.code, "Failed to send logs: HTTP ${response.code} - ${response.message}")
             }
         }
     }
@@ -567,9 +580,9 @@ class LogTideClient(private val options: LogTideClientOptions) {
 
         return traceId.ifBlank {
             if (options.debug) {
-                logger.error("Invalid trace ID '$traceId', generating new UUID")
+                logger.error("Invalid trace ID '$traceId', generating a new one")
             }
-            UUID.randomUUID().toString()
+            TraceContext.generateTraceId()
         }
     }
 
@@ -577,37 +590,41 @@ class LogTideClient(private val options: LogTideClientOptions) {
      * @see <a href="https://logtide.dev/docs/error-handling/">StructuredException Interface</a>
      */
     private fun serializeError(error: Throwable): Map<String, Any?> {
-        fun serializeStacktrace(stacktrace: String): List<Map<String, Any?>> {
-            return stacktrace.lines().map { line ->
-                val regex = """^\s*at\s+(\S+)\s+\(([^:]+):(\d+)\)$""".toRegex()
-                val match = regex.find(line)
-                if (match != null) {
-                    mapOf(
-                        "function" to match.groupValues[1],
-                        "file" to match.groupValues[2],
-                        "line" to match.groupValues[3].toIntOrNull()
-                    )
-                } else {
-                    mapOf("raw" to line.trim())
-                }
+        // Canonical StructuredException shape (spec 003 §4): the backend's
+        // error grouping reads metadata.exception with type/message/language,
+        // stacktrace frames of {file, function, line}, and a nested cause chain.
+        fun frames(current: Throwable): List<Map<String, Any?>> {
+            return current.stackTrace.take(MAX_STACK_FRAMES).map { element ->
+                mapOf(
+                    "file" to (element.fileName ?: "<unknown>"),
+                    "function" to "${element.className}.${element.methodName}",
+                    "line" to element.lineNumber.takeIf { it >= 0 },
+                )
             }
         }
 
         val visited = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
 
-        fun serializeRecursive(current: Throwable): Map<String, Any?> {
+        fun serializeRecursive(current: Throwable, isRoot: Boolean): Map<String, Any?> {
             visited.add(current)
 
-            return mapOf(
-                "type" to current::class.simpleName,
-                "message" to current.message,
-                "stacktrace" to serializeStacktrace(current.stackTraceToString()),
-                "language" to "kotlin",
-                "cause" to current.cause?.takeIf { visited.add(it) }?.let { serializeRecursive(it) },
-            )
+            val type = current::class.simpleName ?: current.javaClass.name
+            return buildMap {
+                put("type", type)
+                // The backend requires a non-empty message for grouping.
+                put("message", current.message?.takeIf { it.isNotBlank() } ?: type)
+                put("language", "kotlin")
+                put("stacktrace", frames(current))
+                if (isRoot) {
+                    put("raw", current.stackTraceToString())
+                }
+                current.cause?.takeIf { visited.add(it) }?.let {
+                    put("cause", serializeRecursive(it, isRoot = false))
+                }
+            }
         }
 
-        return serializeRecursive(error)
+        return serializeRecursive(error, isRoot = true)
     }
 
     private fun updateLatency(latency: Double) {

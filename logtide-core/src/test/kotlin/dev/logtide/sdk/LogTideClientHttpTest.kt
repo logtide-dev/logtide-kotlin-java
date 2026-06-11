@@ -261,16 +261,63 @@ class LogTideClientHttpTest {
     fun `flush should not retry on non-retryable errors`() = runBlocking {
         client = createClient(maxRetries = 3)
 
-        // Client error (4xx) should not trigger retries in most implementations
-        // But current implementation retries all errors
+        // Client errors (4xx, except 408/429) must not be retried: the
+        // request will not become valid by retrying (spec 002 §6).
         mockServer.enqueue(MockResponse().setResponseCode(400))
         mockServer.enqueue(MockResponse().setResponseCode(200))
 
         client.info("test", "Message")
         client.flush()
 
-        // With current implementation, it will retry
-        assertTrue(mockServer.requestCount >= 1)
+        assertEquals(1, mockServer.requestCount)
+    }
+
+    @Test
+    fun `flush should retry on 429`() = runBlocking {
+        client = createClient(maxRetries = 2)
+
+        mockServer.enqueue(MockResponse().setResponseCode(429))
+        mockServer.enqueue(MockResponse().setResponseCode(200))
+
+        client.info("test", "Message")
+        client.flush()
+
+        assertEquals(2, mockServer.requestCount)
+    }
+
+    @Test
+    fun `exceptions are serialized under the canonical exception metadata key`() = runBlocking {
+        client = createClient()
+        mockServer.enqueue(MockResponse().setResponseCode(200))
+
+        client.error("test-service", "boom", RuntimeException("db timeout", IllegalStateException("root")))
+        client.flush()
+
+        val request = mockServer.takeRequest(5, TimeUnit.SECONDS)
+        assertNotNull(request)
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("\"exception\""), body)
+        assertTrue(!body.contains("\"error\":{"), "must not use the legacy error key: $body")
+        assertTrue(body.contains("\"type\":\"RuntimeException\""), body)
+        assertTrue(body.contains("\"language\":\"kotlin\""), body)
+        assertTrue(body.contains("\"cause\""), body)
+        assertTrue(body.contains("\"line\""), body)
+    }
+
+    @Test
+    fun `auto-generated trace ids use the w3c format`() = runBlocking {
+        client = createClient()
+        mockServer.enqueue(MockResponse().setResponseCode(200))
+
+        client.info("test-service", "Test message")
+        client.flush()
+
+        val request = mockServer.takeRequest(5, TimeUnit.SECONDS)
+        assertNotNull(request)
+        val body = request.body.readUtf8()
+        val traceId = Regex("\"trace_id\":\"([^\"]+)\"").find(body)?.groupValues?.get(1)
+        assertNotNull(traceId, "trace_id missing in: $body")
+        assertTrue(traceId.matches(Regex("[0-9a-f]{32}")), "not w3c format: $traceId")
     }
 
     // ==================== Circuit Breaker Tests ====================

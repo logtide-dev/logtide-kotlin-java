@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-06-11
+
+### Added
+
+- W3C Trace Context support: `TraceContext` object with `parseTraceparent`, `formatTraceparent`, `generateTraceId`, `generateSpanId`, `resolveTraceId`
+- Spring, Ktor and Jakarta integrations now resolve the inbound trace context per the W3C spec: `traceparent` header first, legacy `X-Trace-ID` as deprecated fallback, otherwise a new W3C trace ID is generated
+- `HttpStatusException` carrying the response status code
+
+### Changed
+
+- **Breaking:** exceptions passed to `error`/`critical` are now serialized under the canonical `metadata.exception` key (was `metadata.error`), matching the platform's structured exception contract so server-side error grouping and fingerprinting work. Frames are now built from `Throwable.stackTrace` (no string parsing), a null exception message falls back to the type name, and the raw stack trace is included once at the top level
+- Auto-generated trace IDs are now 32-char lowercase-hex W3C IDs instead of UUIDs
+- Client errors (4xx except 408/429) are no longer retried: the batch is dropped after the first attempt instead of burning the full retry budget
+- The per-log "No trace ID provided" warning has been removed (debug-level only now)
+
 ## [0.9.0] - 2026-06-11
 
 ### Fixed

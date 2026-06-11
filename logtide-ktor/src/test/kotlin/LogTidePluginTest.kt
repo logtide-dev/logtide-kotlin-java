@@ -185,8 +185,8 @@ class LogTidePluginTest {
         client.get("/test")
 
         assertNotNull(generatedTraceId)
-        // Should be a valid UUID format
-        assertTrue(generatedTraceId!!.matches(Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")))
+        // Should be a valid W3C trace id (32 lowercase hex chars)
+        assertTrue(generatedTraceId!!.matches(Regex("[0-9a-f]{32}")))
     }
 
     @Test
@@ -559,5 +559,28 @@ class LogTidePluginTest {
         assertNotNull(config.extractMetadataFromIncomingCall)
         assertNotNull(config.extractMetadataFromOutgoingContent)
         assertNotNull(config.extractTraceIdFromCall)
+    }
+
+    @Test
+    fun `plugin should prefer w3c traceparent over legacy header`() = testApplication {
+        var extractedTraceId: String? = null
+
+        application {
+            installLogtideDefault(mockServer)
+
+            routing {
+                get("/test") {
+                    extractedTraceId = call.application.attributes[LogTideClientKey].getTraceId()
+                    call.respondText("OK")
+                }
+            }
+        }
+
+        client.get("/test") {
+            header("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+            header("X-Trace-ID", "legacy-123")
+        }
+
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", extractedTraceId)
     }
 }
