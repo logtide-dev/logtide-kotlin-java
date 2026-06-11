@@ -86,13 +86,36 @@ class LogTideClientHttpTest {
         val request = mockServer.takeRequest(5, TimeUnit.SECONDS)
         assertNotNull(request)
         assertEquals("POST", request.method)
-        assertEquals("/", request.path)
+        // apiUrl is documented as the base URL of the instance: logs must go
+        // to the ingest endpoint, not to the root path.
+        assertEquals("/api/v1/ingest", request.path)
         assertEquals("test_api_key", request.getHeader("X-API-Key"))
         assertEquals("application/json; charset=utf-8", request.getHeader("Content-Type"))
 
         val body = request.body.readUtf8()
         assertTrue(body.contains("Test message"))
         assertTrue(body.contains("test-service"))
+    }
+
+    @Test
+    fun `flush should not duplicate ingest path when apiUrl already includes it`() = runBlocking {
+        client = LogTideClient(
+            LogTideClientOptions(
+                apiUrl = mockServer.url("/api/v1/ingest").toString().removeSuffix("/"),
+                apiKey = "test_api_key",
+                batchSize = 10,
+                flushInterval = 60.seconds,
+                debug = false
+            )
+        )
+        mockServer.enqueue(MockResponse().setResponseCode(200))
+
+        client.info("test-service", "Test message")
+        client.flush()
+
+        val request = mockServer.takeRequest(5, TimeUnit.SECONDS)
+        assertNotNull(request)
+        assertEquals("/api/v1/ingest", request.path)
     }
 
     @Test

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Logs are now sent to `POST {apiUrl}/api/v1/ingest` instead of `POST {apiUrl}`. `apiUrl` is documented as the base URL of the instance, so with the documented configuration every batch was posted to the root path and ingestion failed. URLs that already include `/api/v1/ingest` keep working (the path is not duplicated)
+
 ## [0.8.4] - 2026-03-19
 
 ### Fixed

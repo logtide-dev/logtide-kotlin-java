@@ -36,6 +36,14 @@ import kotlin.math.pow
 class LogTideClient(private val options: LogTideClientOptions) {
     companion object {
         private const val MAX_TRACEID_LENGTH = 250
+        private const val INGEST_PATH = "/api/v1/ingest"
+    }
+
+    // apiUrl is the base URL of the instance; the ingest path is appended
+    // here. URLs that already include it are accepted for backward
+    // compatibility with configs that worked around the old behaviour.
+    private val ingestUrl: String = options.apiUrl.trimEnd('/').let {
+        if (it.endsWith(INGEST_PATH)) it else it + INGEST_PATH
     }
 
     private val logger = LoggerFactory.getLogger(this::class.java)
@@ -384,7 +392,7 @@ class LogTideClient(private val options: LogTideClientOptions) {
         val payload = mapOf("logs" to logs)
         val jsonBody = json.encodeToString(payload)
 
-        val request = baseRequestBuilder(options.apiUrl)
+        val request = baseRequestBuilder(ingestUrl)
             .post(jsonBody.toRequestBody("application/json".toMediaType()))
             .build()
 
