@@ -200,10 +200,18 @@ class LogTideClient(private val options: LogTideClientOptions) {
     fun log(entry: LogEntry) {
         var finalEntry = entry
 
+        // Merge the current scope (tags, user, breadcrumbs, session, trace
+        // context). Runs before trace-id injection so the scope's trace
+        // context wins over auto-generation (spec 005 §4).
+        ScopeContext.threadLocalScope.get()?.let { scope ->
+            finalEntry = scope.applyToEntry(finalEntry)
+        }
+
         // Apply global metadata
         if (options.globalMetadata.isNotEmpty()) {
-            val mergedMetadata = (entry.metadata ?: emptyMap()) + options.globalMetadata
-            finalEntry = entry.copy(metadata = mergedMetadata)
+            // Global metadata is the base; entry-level values win (spec 004 §2)
+            val mergedMetadata = options.globalMetadata + (finalEntry.metadata ?: emptyMap())
+            finalEntry = finalEntry.copy(metadata = mergedMetadata)
         }
 
         // Stamp SDK identity (spec 003 §3); caller-provided value wins

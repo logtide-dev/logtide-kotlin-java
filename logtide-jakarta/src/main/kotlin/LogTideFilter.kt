@@ -4,6 +4,7 @@ package dev.logtide.sdk.jakarta
 
 import dev.logtide.sdk.LogTideClient
 import dev.logtide.sdk.TraceContext
+import dev.logtide.sdk.withScope
 import jakarta.servlet.*
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -86,66 +87,72 @@ class LogTideFilter(
         )
         client.setTraceId(traceId)
 
-        val startTime = System.currentTimeMillis()
-        request.setAttribute(START_TIME_ATTR, startTime)
+        // Per-request scope isolation: breadcrumbs/user/tags set inside the
+        // request stay local to it (spec 004 §6).
+        withScope { scope ->
+            scope.setTraceContext(traceId)
 
-        // Log request
-        if (logRequests) {
-            client.info(
-                serviceName,
-                "Request started",
-                mapOf(
-                    "method" to request.method,
-                    "path" to path,
-                    "query" to (request.queryString ?: ""),
-                    "remoteAddr" to request.remoteAddr
-                )
-            )
-        }
+            val startTime = System.currentTimeMillis()
+            request.setAttribute(START_TIME_ATTR, startTime)
 
-        var exception: Throwable? = null
-
-        try {
-            // Continue filter chain
-            chain.doFilter(request, response)
-        } catch (e: Throwable) {
-            exception = e
-            throw e
-        } finally {
-            val duration = System.currentTimeMillis() - startTime
-
-            // Log error if exception occurred
-            if (exception != null && logErrors) {
-                client.error(
-                    serviceName,
-                    "Request failed",
-                    mapOf(
-                        "method" to request.method,
-                        "path" to path,
-                        "status" to response.status,
-                        "duration" to duration,
-                        "error" to mapOf(
-                            "name" to exception::class.simpleName,
-                            "message" to exception.message
-                        )
-                    )
-                )
-            } else if (logResponses) {
-                // Log successful response
+            // Log request
+            if (logRequests) {
                 client.info(
                     serviceName,
-                    "Request completed",
+                    "Request started",
                     mapOf(
                         "method" to request.method,
                         "path" to path,
-                        "status" to response.status,
-                        "duration" to duration
+                        "query" to (request.queryString ?: ""),
+                        "remoteAddr" to request.remoteAddr
                     )
                 )
             }
 
-            // Clear trace ID context
-            client.setTraceId(null)
+            var exception: Throwable? = null
+
+            try {
+                // Continue filter chain
+                chain.doFilter(request, response)
+            } catch (e: Throwable) {
+                exception = e
+                throw e
+            } finally {
+                val duration = System.currentTimeMillis() - startTime
+
+                // Log error if exception occurred
+                if (exception != null && logErrors) {
+                    client.error(
+                        serviceName,
+                        "Request failed",
+                        mapOf(
+                            "method" to request.method,
+                            "path" to path,
+                            "status" to response.status,
+                            "duration" to duration,
+                            "error" to mapOf(
+                                "name" to exception::class.simpleName,
+                                "message" to exception.message
+                            )
+                        )
+                    )
+                } else if (logResponses) {
+                    // Log successful response
+                    client.info(
+                        serviceName,
+                        "Request completed",
+                        mapOf(
+                            "method" to request.method,
+                            "path" to path,
+                            "status" to response.status,
+                            "duration" to duration
+                        )
+                    )
+                }
+
+                // Clear trace ID context
+                client.setTraceId(null)
+            }
         }
     }
 

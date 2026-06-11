@@ -17,5 +17,9 @@ data class LogEntry(
     val time: String = Instant.now().toString(),
     val metadata: Map<String, @Serializable(with = AnyValueSerializer::class) Any>? = null,
     @SerialName("trace_id")
-    val traceId: String? = null
+    val traceId: String? = null,
+    @SerialName("span_id")
+    val spanId: String? = null,
+    @SerialName("session_id")
+    val sessionId: String? = null
 )

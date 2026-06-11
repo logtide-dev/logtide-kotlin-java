@@ -3,6 +3,8 @@
 package dev.logtide.sdk.spring
 
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.Scope
+import dev.logtide.sdk.ScopeContext
 import dev.logtide.sdk.TraceContext
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -51,6 +53,7 @@ class LogTideInterceptor(
 
     companion object {
         private const val START_TIME_ATTR = "logtide.startTime"
+        private const val PREVIOUS_SCOPE_ATTR = "logtide.previousScope"
         private const val TRACE_ID_HEADER = "X-Trace-ID"
     }
 
@@ -73,6 +76,12 @@ class LogTideInterceptor(
             request.getHeader(TRACE_ID_HEADER),
         )
         client.setTraceId(traceId)
+
+        // Per-request scope isolation: push a clone, restored in afterCompletion
+        val scope = ScopeContext.current().clone()
+        scope.setTraceContext(traceId)
+        val previous = ScopeContext.activate(scope)
+        request.setAttribute(PREVIOUS_SCOPE_ATTR, PreviousScope(previous))
 
         // Store start time
         request.setAttribute(START_TIME_ATTR, System.currentTimeMillis())
@@ -139,9 +148,16 @@ class LogTideInterceptor(
             )
         }
 
-        // Clear trace ID context
+        // Clear trace ID context and restore the outer scope
         client.setTraceId(null)
+        (request.getAttribute(PREVIOUS_SCOPE_ATTR) as? PreviousScope)?.let {
+            ScopeContext.restore(it.scope)
+            request.removeAttribute(PREVIOUS_SCOPE_ATTR)
+        }
     }
+
+    /** Wrapper so a null previous scope can travel through request attributes. */
+    private class PreviousScope(val scope: Scope?)
 
     private fun shouldSkip(path: String): Boolean {
         if (skipHealthCheck && (path == "/health" || path == "/actuator/health")) {

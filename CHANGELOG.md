@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-06-11
+
+### Added
+
+- **Scope API**: per-request/per-task context — `Scope`, `ScopeContext`, `withScope { }`, coroutine-safe `withScopeSuspend { }`, `LogTideUser`, `Breadcrumb`. Scope state (tags, extras, user, breadcrumbs ring buffer, session, trace context) is merged into every captured entry; entry-level values win
+- `LogEntry.spanId` and `LogEntry.sessionId`, serialized as top-level `span_id` / `session_id`
+- Per-request scope isolation in the Spring interceptor and Jakarta filter: breadcrumbs/user/tags set inside a request stay local to it, and request logs inherit the request's trace context
+
+### Fixed
+
+- Global metadata no longer overrides entry-level metadata on key collision (entry wins, per the cross-SDK contract)
+
 ## [0.9.2] - 2026-06-11
 
 ### Added
