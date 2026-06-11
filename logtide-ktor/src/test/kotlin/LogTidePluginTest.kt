@@ -1,4 +1,5 @@
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.ScopeContext
 import dev.logtide.sdk.currentTraceId
 import dev.logtide.sdk.ktor.LogTideClientKey
 import dev.logtide.sdk.ktor.LogTidePlugin
@@ -582,5 +583,56 @@ class LogTidePluginTest {
         }
 
         assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", extractedTraceId)
+    }
+
+    @Test
+    fun `plugin isolates scope per request`() = testApplication {
+        var leakedTags: Any? = "unset"
+
+        application {
+            installLogtideDefault(mockServer)
+
+            routing {
+                get("/a") {
+                    ScopeContext.current().setTag("req", "a")
+                    call.respondText("OK")
+                }
+                get("/b") {
+                    leakedTags = ScopeContext.current()
+                        .applyToEntry(dev.logtide.sdk.models.LogEntry("svc", dev.logtide.sdk.enums.LogLevel.INFO, "x"))
+                        .metadata?.get("tags")
+                    call.respondText("OK")
+                }
+            }
+        }
+
+        client.get("/a")
+        client.get("/b")
+
+        assertEquals(null, leakedTags, "scope state must not leak across requests")
+    }
+
+    @Test
+    fun `plugin scope carries the request trace id`() = testApplication {
+        var scopeTraceId: String? = null
+
+        application {
+            installLogtideDefault(mockServer)
+
+            routing {
+                get("/t") {
+                    scopeTraceId = ScopeContext.current()
+                        .applyToEntry(dev.logtide.sdk.models.LogEntry("svc", dev.logtide.sdk.enums.LogLevel.INFO, "x"))
+                        .traceId
+                    call.respondText("OK")
+                }
+            }
+        }
+
+        client.get("/t") {
+            header("traceparent", "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01")
+        }
+
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", scopeTraceId)
     }
 }

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-06-11
+
+### Added
+
+- Per-request scope isolation in the Ktor plugin: the default interceptor now activates a per-request `Scope` (coroutine-safe) alongside the trace-id element — breadcrumbs/user/tags set inside a handler stay local to that request, and the scope carries the request's trace context
+- `ScopeContext.asContextElement(scope)` for custom coroutine-based middleware
+
 ## [0.9.3] - 2026-06-11
 
 ### Added

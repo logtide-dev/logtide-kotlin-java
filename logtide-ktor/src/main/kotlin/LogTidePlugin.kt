@@ -4,6 +4,7 @@
 package dev.logtide.sdk.ktor
 
 import dev.logtide.sdk.LogTideClient
+import dev.logtide.sdk.ScopeContext
 import dev.logtide.sdk.TraceContext
 import dev.logtide.sdk.TraceIdElement
 import dev.logtide.sdk.models.LogTideClientOptions
@@ -213,14 +214,23 @@ val LogTidePlugin = createApplicationPlugin(
         // This ensures all coroutines in the request handler have access to the trace ID
         application.intercept(ApplicationCallPipeline.Call) {
             val traceId = call.attributes.getOrNull(TraceIdAttributeKey)
+
+            // Per-request scope isolation (spec 004 §6): breadcrumbs/user/tags
+            // set inside the handler stay local to this request.
+            val scope = ScopeContext.current().clone()
+            if (traceId != null) scope.setTraceContext(traceId)
+            val scopeElement = ScopeContext.asContextElement(scope)
+
             if (traceId != null) {
                 // Wrap the entire call execution with TraceIdElement
                 // This propagates the trace ID to all child coroutines
-                withContext(TraceIdElement(traceId)) {
+                withContext(TraceIdElement(traceId) + scopeElement) {
                     proceed()
                 }
             } else {
-                proceed()
+                withContext(scopeElement) {
+                    proceed()
+                }
             }
         }
     }

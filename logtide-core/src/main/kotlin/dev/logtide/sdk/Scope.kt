@@ -165,6 +165,13 @@ object ScopeContext {
     fun restore(previous: Scope?) {
         if (previous == null) threadLocalScope.remove() else threadLocalScope.set(previous)
     }
+
+    /**
+     * Coroutine context element carrying [scope], for middleware that wraps
+     * request handling in `withContext` (e.g. the Ktor plugin).
+     */
+    fun asContextElement(scope: Scope): kotlin.coroutines.CoroutineContext.Element =
+        threadLocalScope.asContextElement(scope)
 }
 
 /**
