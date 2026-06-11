@@ -222,6 +222,25 @@ class LogTideClient(private val options: LogTideClientOptions) {
             )
         }
 
+        // beforeSend hook: may mutate or drop the entry. A buggy hook must
+        // never lose the entry or raise to the caller.
+        options.beforeSend?.let { hook ->
+            val result = try {
+                hook(finalEntry)
+            } catch (hookError: Exception) {
+                if (options.debug) {
+                    logger.debug("beforeSend raised, keeping entry: ${hookError.message}")
+                }
+                finalEntry
+            }
+            finalEntry = result ?: return
+        }
+
+        // Sampling (applied after beforeSend, spec 005 §5)
+        if (options.sampleRate < 1.0 && Math.random() > options.sampleRate) {
+            return
+        }
+
         // Apply trace ID context
         if (finalEntry.traceId == null) {
             val contextTraceId = traceIdContext.get()

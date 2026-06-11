@@ -19,7 +19,11 @@ data class LogTideClientOptions(
     var enableMetrics: Boolean = true,
     var debug: Boolean = false,
     var globalMetadata: Map<String, Any> = emptyMap(),
-    var service: String? = null
+    var service: String? = null,
+    /** Hook called before buffering: mutate the entry or return null to drop it. */
+    var beforeSend: ((LogEntry) -> LogEntry?)? = null,
+    /** Per-entry sampling rate in [0.0, 1.0], applied after beforeSend. */
+    var sampleRate: Double = 1.0
 ) {
     companion object {
         /**
@@ -46,6 +50,7 @@ data class LogTideClientOptions(
         require(maxBufferSize > 0) { "maxBufferSize must be positive" }
         require(maxRetries >= 0) { "maxRetries must be non-negative" }
         require(circuitBreakerThreshold > 0) { "circuitBreakerThreshold must be positive" }
+        require(sampleRate in 0.0..1.0) { "sampleRate must be between 0.0 and 1.0" }
     }
     
     @Deprecated("Use flushInterval property with Duration", ReplaceWith("flushInterval.inWholeMilliseconds"))
@@ -75,6 +80,8 @@ class LogTideClientOptionsBuilder {
     var debug: Boolean = false
     var globalMetadata: Map<String, Any> = emptyMap()
     var service: String? = null
+    var beforeSend: ((LogEntry) -> LogEntry?)? = null
+    var sampleRate: Double = 1.0
 
     fun build(): LogTideClientOptions = LogTideClientOptions(
         apiUrl = apiUrl,
@@ -89,7 +96,9 @@ class LogTideClientOptionsBuilder {
         enableMetrics = enableMetrics,
         debug = debug,
         globalMetadata = globalMetadata,
-        service = service
+        service = service,
+        beforeSend = beforeSend,
+        sampleRate = sampleRate
     )
 }
 
