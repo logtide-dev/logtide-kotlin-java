@@ -29,7 +29,7 @@ why a scenario does not apply. TODO entries are tracked work.
 | C22 | beforeSend can mutate or drop entries | ✅ | `HooksTest` |
 | C23 | sampling: rate 0 sends nothing (logs) / no-op spans (traces) | ✅ | `HooksTest` (logs), `LogTideOpenTelemetryTest` (traces) |
 | C24 | OTLP span export with service.name resource | ✅ | `logtide-otel` `LogTideOpenTelemetryTest` |
-| C25 | outbound traceparent injection on instrumented HTTP clients | TODO | outbound traceparent interceptor not implemented |
+| C25 | outbound traceparent injection on instrumented HTTP clients | ✅ | `TraceparentInterceptor` (`TraceparentInterceptorTest`) |
 | C26 | log/trace correlation: active span ids on entries | ✅ | `LogTideOpenTelemetryTest` (logs inside a span) |
 | C27 | middleware error capture rethrows after logging | ✅ | middleware rethrow after logging (interceptor/filter tests) |
 | C28 | logging-bridge level mapping and scope context | ✅ | `logtide-logback` `LogTideAppenderTest` (level mapping, MDC) |
